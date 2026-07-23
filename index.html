@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tripel S AI — sketch → photograph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
+  <svg id="themeIcon" width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <circle cx="9" cy="9" r="4.5" stroke="#171717" stroke-width="1.3"/>
+    <path d="M9 1.5V3.3M9 14.7V16.5M16.5 9H14.7M3.3 9H1.5M14.1 3.9L12.8 5.2M5.2 12.8L3.9 14.1M14.1 14.1L12.8 12.8M5.2 5.2L3.9 3.9" stroke="#171717" stroke-width="1.3" stroke-linecap="round"/>
+  </svg>
+</button>
+<div id="view-home" class="view active">
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 34 34" fill="none">
+        <rect x="1" y="1" width="32" height="32" rx="2" stroke="#171717" stroke-width="1.2"/>
+        <circle cx="17" cy="17" r="7.5" stroke="#171717" stroke-width="1.4"/>
+        <circle cx="17" cy="17" r="2" fill="#171717"/>
+        <path d="M1 9H7M1 25H7M27 9H33M27 25H33" stroke="#171717" stroke-width="1"/>
+      </svg>
+      <h1 class="logo">Tripel S AI</h1>
+    </div>
+    <nav>
+      <a href="#" onclick="showView('gallery');return false;">Gallery</a>
+      <a href="#" onclick="showView('upgrade');return false;">Pricing</a>
+      <a href="#" onclick="showView('app');return false;">Dashboard</a>
+      <a href="#" class="cta" onclick="showView('login');return false;">Sign in</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">SketchUp → real photograph</div>
+    <h2>turn 3D models into photographs</h2>
+    <p>Upload a SketchUp render or rough 3D export — get back a photorealistic architectural photograph in minutes. Built for architects and interior designers.</p>
+    <div class="ctas">
+      <a class="btn btn-primary" href="#" onclick="showView('login');return false;">Get started free</a>
+      <a class="btn btn-outline" href="#" onclick="showView('gallery');return false;">See example work</a>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h3>Recent transformations</h3>
+    <a href="#" onclick="showView('gallery');return false;">View full gallery →</a>
+  </div>
+  <div class="showcase" id="showcase"></div>
+
+  <div class="section-head">
+    <h3>Built for architecture work</h3>
+  </div>
+  <div class="features">
+    <div class="feature">
+      <div class="fi"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="9" rx="1" stroke="#171717" stroke-width="1.2" fill="none"/><path d="M5 4L6.4 1.5H9.6L11 4" stroke="#171717" stroke-width="1.2" fill="none"/></svg></div>
+      <h4>Exterior &amp; Interior</h4>
+      <p>Two dedicated workflows — one for full building exteriors, one for interior rooms with material and lighting control.</p>
+    </div>
+    <div class="feature">
+      <div class="fi"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#171717" stroke-width="1.2" fill="none"/><circle cx="8" cy="8" r="1.6" fill="#171717"/></svg></div>
+      <h4>Time, weather &amp; focus</h4>
+      <p>Control time of day, clouds, weather, background context and depth of field before you render — not after.</p>
+    </div>
+    <div class="feature">
+      <div class="fi"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8H14M8 2V14" stroke="#171717" stroke-width="1.2"/></svg></div>
+      <h4>Before / after compare</h4>
+      <p>Drag to compare the original model against the finished photograph, right in the browser.</p>
+    </div>
+    <div class="feature">
+      <div class="fi"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#171717" stroke-width="1.2" fill="none"/></svg></div>
+      <h4>Fast upscale</h4>
+      <p>SSS Upscale sharpens and adds detail to existing renders without changing the composition.</p>
+    </div>
+  </div>
+
+  <div class="cta-band">
+    <h3>start your first render</h3>
+    <p>No credit card required for the free tier.</p>
+    <a href="#" onclick="showView('login');return false;">Get started free</a>
+  </div>
+
+  <footer>© Tripel S AI</footer>
+</div>
+</div>
+
+<div id="view-app" class="view">
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 34 34" fill="none">
+        <rect x="1" y="1" width="32" height="32" rx="2" stroke="#171717" stroke-width="1.2"/>
+        <circle cx="17" cy="17" r="7.5" stroke="#171717" stroke-width="1.4"/>
+        <circle cx="17" cy="17" r="2" fill="#171717"/>
+        <path d="M1 9H7M1 25H7M27 9H33M27 25H33" stroke="#171717" stroke-width="1"/>
+      </svg>
+      <h1>Tripel S AI</h1>
+    </div>
+    <div class="nav-right">
+      <div class="conn ok" id="connStatus"><div class="pip"></div><span id="connText">System ready</span></div>
+      <a href="#" onclick="showView('home');return false;" style="font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);text-decoration:none;margin-right:16px;">Home</a>
+      <a href="#" onclick="showView('upgrade');return false;" style="font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);text-decoration:none;margin-right:16px;">Upgrade</a>
+      <a href="#" onclick="showView('gallery');return false;" style="font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);text-decoration:none;margin-right:4px;">Gallery</a>
+      <a href="#" onclick="showView('upgrade');return false;" class="token-chip" style="text-decoration:none;cursor:pointer;">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="#717171" stroke-width="1.3"/><path d="M7 4V10M5.2 8.8C5.2 9.6 5.9 10 7 10C8.2 10 8.8 9.5 8.8 8.8C8.8 7.3 5.2 8 5.2 6.5C5.2 5.8 5.9 5.3 7 5.3C7.8 5.3 8.4 5.6 8.7 6.1" stroke="#717171" stroke-width="1.1" stroke-linecap="round"/></svg>
+        <span id="tokenBalance">Pro · 428 left</span>
+      </a>
+      <button class="tut-btn" id="tutBtn">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6.3" stroke="#171717" stroke-width="1.2"/><path d="M5.6 5.7C5.6 4.6 6.4 3.9 7.5 3.9C8.6 3.9 9.4 4.6 9.4 5.6C9.4 6.9 7.5 6.9 7.5 8.6" stroke="#171717" stroke-width="1.2" stroke-linecap="round"/><circle cx="7.5" cy="10.9" r="0.6" fill="#171717"/></svg>
+        <span>Guide</span>
+      </button>
+      <div class="acct-wrap">
+        <button class="acct-btn" id="acctBtn">
+          <span class="acct-avatar" id="acctAvatar">?</span>
+          <span id="acctLabel">Sign in</span>
+        </button>
+        <div class="acct-panel" id="acctPanel">
+          <div id="accountView">
+            <h3>Account</h3>
+            <div class="user-line" id="acctEmail">you@studio.com</div>
+            <div class="plan-line">Plan · Pro · 428 credits remaining</div>
+            <div class="divider"></div>
+            <label class="row"><span>API Token</span><input type="text" id="apiToken" value="sk-live-••••••••••••3f9a" readonly></label>
+            <button class="btn-ghost-block" id="btnCopyToken" style="margin-bottom:10px;">Copy Token</button>
+            <details class="adv">
+              <summary>Connection settings (advanced)</summary>
+              <div class="adv-body">
+                <label class="row"><span>Server URL</span><input type="text" id="serverUrl" value="http://100.92.157.91:8188" placeholder="http://100.92.157.91:8188"></label>
+                <button class="btn-ghost-block" id="btnTestConn">Test Connection</button>
+              </div>
+            </details>
+            <div class="divider"></div>
+            <button class="btn-ghost-block" id="btnLogout">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: controls -->
+    <div>
+      <div class="card">
+        <div class="card-head"><h2>01 · Select Process</h2><span class="plate-no">PL.01</span></div>
+        <div class="wf-options" id="wfOptions">
+          <div class="wf-opt selected" data-wf="magnific">
+            <div class="wf-icon">
+              <svg viewBox="0 0 20 20" fill="none"><path d="M2 7V2H7M13 2H18V7M18 13V18H13M7 18H2V13" stroke="#171717" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <div class="name">SSS Upscale <span class="badge">Ready</span></div>
+              <div class="desc">Increases resolution and sharpness, adding crisp detail without changing the original composition.</div>
+            </div>
+          </div>
+          <div class="wf-opt" data-wf="sss">
+            <div class="wf-icon">
+              <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="11" rx="1" stroke="#171717" stroke-width="1.4"/><path d="M7 5L8.6 2.5H11.4L13 5" stroke="#171717" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10.5" r="3.1" stroke="#171717" stroke-width="1.4"/></svg>
+            </div>
+            <div>
+              <div class="name">SSS Sketchup to Render <span class="badge">Ready</span></div>
+              <div class="desc">Turns a SketchUp model image into a realistic architectural photograph. Turbo (fast) / Quality (sharper) modes available.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>02 · Upload Image</h2><span class="plate-no">PL.02</span></div>
+        <div class="drop" id="dropZone">
+          <input type="file" id="fileInput" accept="image/*">
+          <div class="hint"><b>Click to choose a file</b> or drag and drop an image here</div>
+        </div>
+        <div class="preview" id="previewBox"><img id="previewImg"></div>
+      </div>
+
+      <div class="card" id="paramsCardMagnific">
+        <div class="card-head"><h2>03 · Parameters · SSS Upscale</h2><span class="plate-no">PL.03</span></div>
+        <label class="field">
+          <span>Extra prompt (optional — leave blank to use guidance only)</span>
+          <textarea id="pPrompt" placeholder=""></textarea>
+        </label>
+        <div class="row2">
+          <label class="field">
+            <span>Upscale ×</span>
+            <input type="number" id="pUpscaleBy" value="2" step="0.25" min="1" max="4">
+          </label>
+          <label class="field">
+            <span>Denoise (higher = more change from original detail)</span>
+            <input type="number" id="pDenoise" value="0.15" step="0.01" min="0" max="1">
+          </label>
+        </div>
+        <div class="row2">
+          <label class="field">
+            <span>Steps</span>
+            <input type="number" id="pSteps" value="20" min="1" max="100">
+          </label>
+          <label class="field">
+            <span>CFG</span>
+            <input type="number" id="pCfg" value="8" step="0.5" min="1" max="20">
+          </label>
+        </div>
+        <label class="field">
+          <span>Seed</span>
+          <div class="seedrow">
+            <input type="number" id="pSeed" value="62">
+            <button class="ghost" id="btnRandSeedMagnific">Randomize</button>
+          </div>
+        </label>
+      </div>
+
+      <div class="card" id="paramsCardSSS" style="display:none;">
+        <div class="card-head"><h2>03 · Parameters · SSS Sketchup to Render</h2><span class="plate-no">PL.03</span></div>
+        <label class="field">
+          <span>Image Type</span>
+          <select id="sPromptType">
+            <option value="exterior">Exterior (outdoor)</option>
+            <option value="semiOutdoor">Semi Outdoor (covered terrace/pavilion/carport)</option>
+            <option value="interior">Interior (indoor)</option>
+            <option value="custom">Custom (free-form prompt)</option>
+          </select>
+        </label>
+
+        <div id="sExtControls">
+          <div class="row2">
+            <label class="field">
+              <span>Time of Day</span>
+              <select id="sExtTime">
+                <option value="morning">Morning</option>
+                <option value="noon" selected>Noon</option>
+                <option value="evening">Evening</option>
+                <option value="night">Night (building lights on)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Clouds</span>
+              <select id="sExtClouds">
+                <option value="none">None</option>
+                <option value="thin" selected>Thin</option>
+                <option value="thick">Thick</option>
+                <option value="overcast">Overcast</option>
+              </select>
+            </label>
+          </div>
+          <div class="row2">
+            <label class="field">
+              <span>Weather</span>
+              <select id="sExtWeather">
+                <option value="clear" selected>Clear</option>
+                <option value="rain">Rain</option>
+                <option value="snow">Snow</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Background</span>
+              <select id="sExtBackground">
+                <option value="trees" selected>Trees</option>
+                <option value="low">Low-rise</option>
+                <option value="high">High-rise</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span>View Type</span>
+            <select id="sExtView">
+              <option value="normal" selected>Eye-Level (default, keep original camera)</option>
+              <option value="bird">Bird's Eye View</option>
+              <option value="isometric">Isometric</option>
+            </select>
+          </label>
+          <div class="row2">
+            <label class="field">
+              <span>People</span>
+              <select id="sExtPeople">
+                <option value="no" selected>None</option>
+                <option value="yes">Include</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Vehicles</span>
+              <select id="sExtCars">
+                <option value="no" selected>None</option>
+                <option value="yes">Include</option>
+              </select>
+            </label>
+          </div>
+          <label class="field" id="sExtPeopleDescWrap" style="display:none;">
+            <span>Describe the people (optional)</span>
+            <input type="text" id="sExtPeopleDesc" placeholder="e.g. a couple walking a dog, two children playing">
+          </label>
+          <label class="field">
+            <span>Focus Mode</span>
+            <select id="sExtFocus">
+              <option value="deep" selected>Deep Focus (sharp throughout)</option>
+              <option value="shallow">Shallow DOF (blurred background, building emphasis)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Additional notes (optional)</span>
+            <textarea id="sExtExtra" placeholder="e.g. filmic color grade, low camera angle..." style="min-height:50px;"></textarea>
+          </label>
+        </div>
+
+        <div id="sIntControls" style="display:none;">
+          <div class="row2">
+            <label class="field">
+              <span>Room Type</span>
+              <select id="sIntRoom">
+                <option value="bedroom">Bedroom</option>
+                <option value="living" selected>Living Room</option>
+                <option value="kitchen">Kitchen</option>
+                <option value="bathroom">Bathroom</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Artificial Lighting (ceiling/wall fixtures)</span>
+              <select id="sIntLighting">
+                <option value="off" selected>Off (natural light only)</option>
+                <option value="on">On</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span>Focus Mode</span>
+            <select id="sIntFocus">
+              <option value="deep" selected>Deep Focus (sharp throughout)</option>
+              <option value="shallow">Shallow DOF (blurred, emphasizing a focal point)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Additional notes (optional)</span>
+            <textarea id="sIntExtra" placeholder="e.g. turn on cove/hidden ceiling lighting, warm tone..." style="min-height:50px;"></textarea>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Prompt (hidden for exterior/interior/semi-outdoor — visible only in Custom mode)</span>
+          <textarea id="sPrompt" readonly style="min-height:90px;"></textarea>
+        </label>
+        <div class="row2">
+          <label class="field">
+            <span>Mode</span>
+            <select id="sTurbo">
+              <option value="true">Turbo — 8 steps (fast)</option>
+              <option value="false">Quality — 20 steps (sharper)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Guidance</span>
+            <input type="number" id="sGuidance" value="4" step="0.5" min="0" max="20">
+          </label>
+        </div>
+        <div class="row2">
+          <label class="field">
+            <span>Output resolution (Megapixels)</span>
+            <input type="number" id="sMegapixels" value="2" step="0.5" min="0.5" max="8">
+          </label>
+          <label class="field">
+            <span>Seed</span>
+            <div class="seedrow">
+              <input type="number" id="sSeed" value="62">
+              <button class="ghost" id="btnRandSeedSSS">Randomize</button>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <button class="run" id="btnRun" disabled>Run Workflow</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Status</h2><span class="plate-no">PL.04</span></div>
+        <div class="status" id="statusBox">Waiting to start…</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: result -->
+    <div class="card result-area">
+      <div class="result-head">
+        <h2>Result</h2>
+        <span class="hint">Drag the center line to compare · PL.05</span>
+      </div>
+      <div class="cmp" id="cmp">
+        <span class="cmp-empty" id="cmpEmpty">No image yet — upload an image and run the workflow first</span>
+        <img id="cmpAfterImg" style="display:none;">
+        <div class="cmp-before-wrap" id="cmpBeforeWrap" style="display:none;">
+          <img id="cmpBeforeImg">
+        </div>
+        <div class="cmp-label before" id="cmpLabelBefore" style="display:none;">Original</div>
+        <div class="cmp-label after" id="cmpLabelAfter" style="display:none;">Result</div>
+        <div class="cmp-line" id="cmpLine" style="display:none;"></div>
+        <div class="cmp-dot" id="cmpDot" style="display:none;">
+          <svg viewBox="0 0 20 11" fill="none"><path d="M6 1L1 5.5L6 10M14 1L19 5.5L14 10" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <input type="range" id="cmpRange" class="cmp-range" min="0" max="100" value="50" style="display:none;">
+      </div>
+      <div class="actions-bottom" id="actionsBottom" style="display:none;">
+        <a class="dl" id="dlLink" download>↓ Download Result</a>
+        <a class="dl secondary" id="dlOrigLink" download>↓ Download Original</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tut-overlay" id="tutOverlay">
+  <div class="tut-modal">
+    <div class="tut-topbar">
+      <span class="tut-eyebrow">Tips for best results</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="tut-badge" id="tutBadge">1/6</span>
+        <button class="tut-close" id="tutClose">✕</button>
+      </div>
+    </div>
+    <div class="tut-body" id="tutBody"></div>
+    <div class="tut-nav">
+      <button id="tutPrev">← Previous</button>
+      <div class="tut-dots" id="tutDots"></div>
+      <button id="tutNext" class="primary">Next →</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="view-login" class="view">
+<div class="login-card">
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+      <rect x="1" y="1" width="32" height="32" rx="2" stroke="#171717" stroke-width="1.2"/>
+      <circle cx="17" cy="17" r="7.5" stroke="#171717" stroke-width="1.4"/>
+      <circle cx="17" cy="17" r="2" fill="#171717"/>
+      <path d="M1 9H7M1 25H7M27 9H33M27 25H33" stroke="#171717" stroke-width="1"/>
+    </svg>
+    <div>
+      <h1>Tripel S AI</h1>
+      <div class="sub" style="text-align:center;">sketch → photograph</div>
+    </div>
+  </div>
+
+  <div id="formArea">
+    <h2>Sign in to get started</h2>
+
+    <button class="g-btn" id="googleBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.09-1.8 2.73v2.27h2.91c1.7-1.57 2.69-3.88 2.69-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.81 5.96-2.18l-2.91-2.27c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.33C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.96 10.7c-.18-.54-.28-1.11-.28-1.7s.1-1.16.28-1.7V4.97H.96C.35 6.19 0 7.55 0 9s.35 2.81.96 4.03l3-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.97l3 2.33C4.67 5.16 6.66 3.58 9 3.58z"/></svg>
+      <span>Continue with Google</span>
+    </button>
+
+    <div class="divider">or</div>
+
+    <div id="loginForm">
+      <label class="lfield"><span>Email</span><input type="text" id="email" placeholder="you@studio.com"></label>
+      <label class="lfield"><span>Password</span><input type="password" id="pass" placeholder="••••••••"></label>
+      <button class="primary-btn" id="emailBtn">Sign in</button>
+    </div>
+
+    <div class="status" id="status"><span class="spin"></span><span id="statusText">Connecting to Google...</span></div>
+
+    <div class="foot">Don't have an account? <a href="#" onclick="showView('upgrade');return false;">See plans and sign up</a></div>
+  </div>
+
+  <div class="success" id="successView">
+    <div class="check"><svg width="20" height="11" viewBox="0 0 20 11" fill="none"><path d="M1 5L7 10L19 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <h2 style="margin-bottom:6px;">Signed in successfully</h2>
+    <p id="successEmail">Welcome back</p>
+    <a class="btn" href="#" onclick="showView('app');return false;">Go to dashboard →</a>
+  </div>
+</div>
+</div>
+
+<div id="view-upgrade" class="view">
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 34 34" fill="none">
+        <rect x="1" y="1" width="32" height="32" rx="2" stroke="#171717" stroke-width="1.2"/>
+        <circle cx="17" cy="17" r="7.5" stroke="#171717" stroke-width="1.4"/>
+        <circle cx="17" cy="17" r="2" fill="#171717"/>
+        <path d="M1 9H7M1 25H7M27 9H33M27 25H33" stroke="#171717" stroke-width="1"/>
+      </svg>
+      <h1 class="logo">Tripel S AI</h1>
+    </div>
+    <nav>
+      <a href="#" onclick="showView('app');return false;">Dashboard</a>
+      <a href="#" class="close" onclick="showView('app');return false;">✕</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h2>Upgrade your plan</h2>
+    <p>Choose the monthly plan that fits how often you render.</p>
+  </div>
+
+  <div class="toggle-row">
+    <div class="toggle">
+      <button class="active" id="tglMonthly">Monthly</button>
+      <button id="tglYearly">Yearly</button>
+    </div>
+    <span class="save-tag">Save 20% yearly</span>
+  </div>
+
+  <div class="plans">
+    <div class="plan">
+      <div class="pname">Free</div>
+      <div class="pdesc">Try the tool with a small monthly allowance.</div>
+      <div class="pprice">฿0</div>
+      <div class="pcredits">20 credits / month</div>
+      <ul>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>SSS Upscale &amp; Sketchup to Render</li>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Standard queue</li>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Watermarked output</li>
+      </ul>
+      <button class="btn-current" disabled>Your current plan</button>
+    </div>
+
+    <div class="plan reco">
+      <span class="reco-tag">Most popular</span>
+      <div class="pname">Pro</div>
+      <div class="pdesc">For freelance architects and regular use.</div>
+      <div class="pprice" data-m="590" data-y="472">฿590<span>/mo</span></div>
+      <div class="pcredits">300 credits / month</div>
+      <ul>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Everything in Free</li>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Priority render queue</li>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>No watermark</li>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Unused credits roll over</li>
+      </ul>
+      <button class="btn-primary">Upgrade to Pro</button>
+    </div>
+
+    <div class="plan">
+      <div class="pname">Studio</div>
+      <div class="pdesc">For small studios and teams with heavy usage.</div>
+      <div class="pprice" data-m="1490" data-y="1192">฿1,490<span>/mo</span></div>
+      <div class="pcredits">1,000 credits / month</div>
+      <ul>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Everything in Pro</li>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Batch processing</li>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>API access</li>
+        <li><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#171717"/><path d="M4 7l2 2 4-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Multi-seat team access</li>
+      </ul>
+      <button class="btn-outline">Upgrade to Studio</button>
+    </div>
+  </div>
+
+  <div class="foot-note">Plans renew monthly · cancel anytime · change or cancel your plan any time from your account</div>
+</div>
+</div>
+
+<div id="view-gallery" class="view">
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 34 34" fill="none">
+        <rect x="1" y="1" width="32" height="32" rx="2" stroke="#171717" stroke-width="1.2"/>
+        <circle cx="17" cy="17" r="7.5" stroke="#171717" stroke-width="1.4"/>
+        <circle cx="17" cy="17" r="2" fill="#171717"/>
+        <path d="M1 9H7M1 25H7M27 9H33M27 25H33" stroke="#171717" stroke-width="1"/>
+      </svg>
+      <h1 class="logo">Tripel S AI</h1>
+    </div>
+    <nav>
+      <a href="#" onclick="showView('upgrade');return false;">Pricing</a>
+      <a href="#" onclick="showView('app');return false;">Dashboard</a>
+      <a href="#" class="cta" onclick="showView('login');return false;">Sign in</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h2>gallery</h2>
+    <p>Drag the center line to compare the source image (SketchUp / raw render) with the system's result.</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-f="all">All</div>
+    <div class="tab" data-f="exterior">Exterior</div>
+    <div class="tab" data-f="interior">Interior</div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="notice">
+    <b>Note:</b> the comparisons above are hand-drawn placeholders demonstrating the before/after mechanism — replace them with your real work by editing <code>before</code> / <code>after</code> in the <code>PROJECTS</code> variable at the bottom of the file to point to real image URLs
+  </div>
+
+  <footer>© Tripel S AI</footer>
+</div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
