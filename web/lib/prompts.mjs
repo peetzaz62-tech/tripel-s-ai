@@ -13,7 +13,7 @@ Realism is added on top of these surfaces, never by changing what they are.`;
 
 const EXT_MATERIALS = `Materials keep their original colors and tones, upgraded to photographic realism: concrete shows formwork lines and subtle tonal variation; brick and stone show real joints and units; metal cladding shows its profile and correct sheen; glass is genuinely transparent with believable reflections and interior depth; wood shows natural grain; painted and rendered surfaces show faint real texture instead of flat digital color. Every material stays in its own family.`;
 
-const EXT_SITE = `Site elements — roads, paths, fences, poles, streetlights, planters, and any vehicles already present — stay in place at correct scale and become photographically real. Grass reads as healthy natural green with realistic blade texture, never yellowed by warm grading; trees and shrubs get natural irregular foliage with no repeating patterns. Nothing is added to or removed from the site.`;
+const EXT_SITE = `Site elements — roads, paths, fences, poles, streetlights, planters, and everything else already visible in the image — stay exactly in place at correct scale and become photographically real. Grass reads as healthy natural green with realistic blade texture, never yellowed by warm grading; trees and shrubs get natural irregular foliage with no repeating patterns. The scene contains exactly what the source image contains: nothing new is introduced anywhere on the site.`;
 
 const EXT_QUALITY = `Color & Photographic Quality: neutral accurate white balance — whites and greens stay true, with warmth only in direct highlights. A natural documentary architectural photograph: subtle sensor grain, believable reflections and contact shadows, gentle atmospheric depth. No HDR look, oversaturation, or artificial sharpening.`;
 
@@ -63,7 +63,10 @@ function extPeopleParagraph(people, desc){
     if(desc) return `People: include ${desc} — correctly scaled to the architecture, lit consistently with the scene, photographically real, secondary to the building.`;
     return `People: one or two people naturally present — walking or standing, correctly scaled, lit consistently with the scene, photographically real, secondary to the building.`;
   }
-  return `People: no people unless they already appear in the source image.`;
+  // Off: emit nothing at all. Image models respond to the concept named in the
+  // prompt and largely ignore the negation around it, so "no people" reliably
+  // summons people. Silence + the global "nothing new is introduced" lock works.
+  return '';
 }
 
 function extViewParagraph(view){
@@ -74,7 +77,7 @@ function extViewParagraph(view){
 
 function extCarsParagraph(cars){
   if(cars === 'yes') return `Vehicles: one or two realistic vehicles in plausible spots (driveway, street, or parking area), correctly scaled and lit, secondary to the building.`;
-  return `Vehicles: no vehicles unless they already appear in the source image.`;
+  return ''; // Off: emit nothing — see extPeopleParagraph
 }
 
 function extFocusParagraph(focus){
@@ -83,7 +86,7 @@ function extFocusParagraph(focus){
 }
 
 function extConsistencyReminder(){
-  return `Final check: an ultra-detailed high-resolution photograph in which the building's geometry, every opening, and the ground layout (paved stays paved, planted stays planted, water stays water) match the source image exactly, and every shadow matches the sky described above.`;
+  return `Final check: an ultra-detailed high-resolution photograph in which the building's geometry, every opening, and the ground layout (paved stays paved, planted stays planted, water stays water) match the source image exactly, every shadow matches the sky described above, and the frame contains no figure, object, or element that was absent from the source image.`;
 }
 
 export function buildExteriorPrompt(p = {}){
@@ -161,7 +164,7 @@ export function buildSemiOutdoorPrompt(p = {}){
 const INT_CORE = [
 `Turn this interior 3D render into a real photograph of the exact same room, shot from the exact same camera position with identical framing and perspective. The result is a straight photograph — nothing may look like CGI, a rendering, or an illustration.`,
 `Preserve exactly: every wall, ceiling, column, window, door, furniture piece, and fixture in its exact position, size, and proportion. Materials keep their original colors and tones, upgraded to photographic realism — flooring with true grain, joints, and subtle wear; fabrics with real weave and natural folds; painted walls with faint real texture; metal and glass with physically accurate reflections.`,
-`Color & Photographic Quality: neutral white balance, true-to-source colors, subtle sensor grain, believable contact shadows and reflections. No HDR look, oversaturation, or artificial sharpening. No people unless already implied by the scene.`
+`Color & Photographic Quality: neutral white balance, true-to-source colors, subtle sensor grain, believable contact shadows and reflections. No HDR look, oversaturation, or artificial sharpening.`
 ].join('\n\n');
 
 function intRoomParagraph(room){
@@ -194,5 +197,5 @@ export function buildInteriorPrompt(p = {}){
   if(extra) extras.push(`Additional Instructions:\n${extra}`);
 
   return INT_CORE + '\n\n' + extras.join('\n\n')
-    + '\n\nFinal check: an ultra-detailed high-resolution photograph in which every wall, opening, furniture piece, and material color matches the source image exactly.';
+    + '\n\nFinal check: an ultra-detailed high-resolution photograph in which every wall, opening, furniture piece, and material color matches the source image exactly, and the frame contains no figure, object, or element that was absent from the source image.';
 }
