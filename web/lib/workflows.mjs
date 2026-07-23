@@ -9,7 +9,7 @@ export function buildMagnificGraph(opts) {
     "2": { class_type: "UNETLoader", inputs: { unet_name: "flux1-dev.safetensors", weight_dtype: "default" } },
     "3": { class_type: "DualCLIPLoader", inputs: { clip_name1: "t5xxl_fp16.safetensors", clip_name2: "clip_l.safetensors", type: "flux", device: "default" } },
     "4": { class_type: "VAELoader", inputs: { vae_name: "ae.safetensors" } },
-    "5": { class_type: "UpscaleModelLoader", inputs: { model_name: "4x-UltraSharp.pth" } },
+    "5": { class_type: "UpscaleModelLoader", inputs: { model_name: "RealESRGAN_x4plus.pth" } },
     "6": { class_type: "CLIPTextEncode", inputs: { text: opts.prompt || "", clip: ["3", 0] } },
     "7": { class_type: "FluxGuidance", inputs: { conditioning: ["6", 0], guidance: 3.5 } },
     "8": { class_type: "UltimateSDUpscale", inputs: {
@@ -35,7 +35,7 @@ export function buildSSSGraph(opts) {
     "45": { class_type: "ImageScaleToTotalPixels", inputs: { upscale_method: "lanczos", megapixels: opts.megapixels, resolution_steps: 1, image: ["125", 0] } },
 
     "68:38": { class_type: "CLIPLoader", inputs: { clip_name: "mistral_3_small_flux2_bf16.safetensors", type: "flux2", device: "default" } },
-    "68:12": { class_type: "UNETLoader", inputs: { unet_name: "flux2_dev_fp8mixed.safetensors", weight_dtype: "default" } },
+    "68:12": { class_type: "UNETLoader", inputs: { unet_name: "flux2-dev.safetensors", weight_dtype: "default" } },
     "68:10": { class_type: "VAELoader", inputs: { vae_name: "full_encoder_small_decoder.safetensors" } },
 
     "68:6": { class_type: "CLIPTextEncode", inputs: { text: opts.prompt, clip: ["68:38", 0] } },
