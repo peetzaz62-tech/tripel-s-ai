@@ -6,8 +6,8 @@
 export function buildMagnificGraph(opts) {
   return {
     "1": { class_type: "LoadImage", inputs: { image: "INPUT_IMAGE" } },
-    "2": { class_type: "UNETLoader", inputs: { unet_name: "flux1-dev-fp8.safetensors", weight_dtype: "default" } },
-    "3": { class_type: "DualCLIPLoader", inputs: { clip_name1: "t5xxl_fp8_e4m3fn.safetensors", clip_name2: "clip_l.safetensors", type: "flux", device: "default" } },
+    "2": { class_type: "UNETLoader", inputs: { unet_name: "flux1-dev.safetensors", weight_dtype: "default" } },
+    "3": { class_type: "DualCLIPLoader", inputs: { clip_name1: "t5xxl_fp16.safetensors", clip_name2: "clip_l.safetensors", type: "flux", device: "default" } },
     "4": { class_type: "VAELoader", inputs: { vae_name: "ae.safetensors" } },
     "5": { class_type: "UpscaleModelLoader", inputs: { model_name: "4x-UltraSharp.pth" } },
     "6": { class_type: "CLIPTextEncode", inputs: { text: opts.prompt || "", clip: ["3", 0] } },

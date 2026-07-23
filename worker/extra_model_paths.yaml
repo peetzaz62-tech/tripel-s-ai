@@ -1,8 +1,14 @@
+# Mirrors the folder layout of the local ComfyUI install so models can be
+# copied to the RunPod Network Volume 1:1 with no renaming.
+# Both the modern ("diffusion_models"/"text_encoders") and legacy ("unet"/"clip")
+# keys are mapped, since the workflows load models through both node families.
 runpod_volume:
   base_path: /runpod-volume/models
-  unet: unet
+  checkpoints: checkpoints
+  diffusion_models: diffusion_models
+  unet: diffusion_models
   clip: clip
+  text_encoders: text_encoders
   vae: vae
   loras: loras
   upscale_models: upscale_models
-  checkpoints: checkpoints

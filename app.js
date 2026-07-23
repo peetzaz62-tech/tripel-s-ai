@@ -17,8 +17,8 @@ function showView(name){
 function buildMagnificPrompt(opts){
   return {
     "1": { class_type:"LoadImage", inputs:{ image: opts.imageName } },
-    "2": { class_type:"UNETLoader", inputs:{ unet_name:"flux1-dev-fp8.safetensors", weight_dtype:"default" } },
-    "3": { class_type:"DualCLIPLoader", inputs:{ clip_name1:"t5xxl_fp8_e4m3fn.safetensors", clip_name2:"clip_l.safetensors", type:"flux", device:"default" } },
+    "2": { class_type:"UNETLoader", inputs:{ unet_name:"flux1-dev.safetensors", weight_dtype:"default" } },
+    "3": { class_type:"DualCLIPLoader", inputs:{ clip_name1:"t5xxl_fp16.safetensors", clip_name2:"clip_l.safetensors", type:"flux", device:"default" } },
     "4": { class_type:"VAELoader", inputs:{ vae_name:"ae.safetensors" } },
     "5": { class_type:"UpscaleModelLoader", inputs:{ model_name:"4x-UltraSharp.pth" } },
     "6": { class_type:"CLIPTextEncode", inputs:{ text: opts.prompt || "", clip:["3",0] } },
@@ -47,8 +47,10 @@ const SAVE_IMAGE_NODE_ID_MAGNIFIC = "9";
 function buildSSSPrompt(opts){
   return {
     "125": { class_type:"LoadImage", inputs:{ image: opts.imageName } },
-    "124": { class_type:"PreviewImage", inputs:{ images:["125",0] } },
-    "45":  { class_type:"ImageScaleToTotalPixels", inputs:{ upscale_method:"lanczos", megapixels: opts.megapixels, resolution_steps:1, image:["124",0] } },
+    // The exported workflow wires node 45 to the PreviewImage node (124), but
+    // PreviewImage is an output node with no output slot, so ComfyUI rejects the
+    // graph. Read the image straight from LoadImage and drop the preview node.
+    "45":  { class_type:"ImageScaleToTotalPixels", inputs:{ upscale_method:"lanczos", megapixels: opts.megapixels, resolution_steps:1, image:["125",0] } },
 
     "68:38": { class_type:"CLIPLoader", inputs:{ clip_name:"mistral_3_small_flux2_bf16.safetensors", type:"flux2", device:"default" } },
     "68:12": { class_type:"UNETLoader", inputs:{ unet_name:"flux2_dev_fp8mixed.safetensors", weight_dtype:"default" } },

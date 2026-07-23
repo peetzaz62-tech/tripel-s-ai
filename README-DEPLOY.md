@@ -27,29 +27,32 @@
 ## B. RunPod (~30–60 นาที ไม่รวมเวลาอัปโหลดโมเดล)
 
 1. สมัครที่ https://runpod.io → เติมเงิน (เริ่ม $10–25 พอทดสอบ)
-2. **Storage → New Network Volume**: ขนาด ~100GB เลือก datacenter ที่มี GPU 24–48GB ว่าง
-3. อัปโหลดโมเดลเข้า volume: **Pods → Deploy** pod ชั่วคราว (GPU ถูกสุดก็ได้) โดย attach volume ที่สร้าง → เปิด terminal/JupyterLab แล้วจัดโฟลเดอร์ในไดรฟ์ volume ให้เป็นแบบนี้ (ดาวน์โหลดด้วย `wget`/`huggingface-cli` หรืออัปโหลดจากเครื่อง):
+2. **Storage → New Network Volume**: ขนาด **150GB** (โมเดลรวม ~101GB ต้องเผื่อที่ว่าง) เลือก datacenter ที่มี GPU 48GB+ ว่าง
+3. เอาโมเดลขึ้น volume: **Pods → Deploy** pod ชั่วคราว (GPU ถูกสุดก็ได้ ใช้แค่เป็นทางผ่าน) โดย attach volume ที่สร้าง → เปิด JupyterLab/terminal แล้วสร้างโครงสร้างนี้ใน volume:
 
-   ```
-   models/
-   ├── unet/flux1-dev-fp8.safetensors
-   ├── unet/flux2_dev_fp8mixed.safetensors
-   ├── clip/t5xxl_fp8_e4m3fn.safetensors
-   ├── clip/clip_l.safetensors
-   ├── clip/mistral_3_small_flux2_bf16.safetensors
-   ├── vae/ae.safetensors
-   ├── vae/full_encoder_small_decoder.safetensors
-   ├── loras/Flux_2-Turbo-LoRA_comfyui.safetensors
-   └── upscale_models/4x-UltraSharp.pth
-   ```
+   | ไฟล์ | โฟลเดอร์ปลายทาง | ขนาด | ใช้กับ |
+   |---|---|---|---|
+   | `flux1-dev.safetensors` | `models/diffusion_models/` | 22.2 GB | Upscale |
+   | `t5xxl_fp16.safetensors` | `models/clip/` | 9.1 GB | Upscale |
+   | `clip_l.safetensors` | `models/clip/` | 0.2 GB | Upscale |
+   | `ae.safetensors` | `models/vae/` | 0.3 GB | Upscale |
+   | `4x-UltraSharp.pth` | `models/upscale_models/` | 0.1 GB | Upscale |
+   | `flux2_dev_fp8mixed.safetensors` | `models/diffusion_models/` | 33.0 GB | Skp→Render |
+   | `mistral_3_small_flux2_bf16.safetensors` | `models/text_encoders/` | 33.1 GB | Skp→Render |
+   | `full_encoder_small_decoder.safetensors` | `models/vae/` | 0.2 GB | Skp→Render |
+   | `Flux_2-Turbo-LoRA_comfyui.safetensors` | `models/loras/` | 2.6 GB | Skp→Render |
 
-   (ไฟล์ชุดเดียวกับที่ใช้ใน ComfyUI บนเครื่องตอนนี้ — คัดลอกจาก `ComfyUI/models/...` ได้เลย)
+   **รวม ~101 GB** — โครงสร้างโฟลเดอร์เหมือน `ComfyUI/models/` ในเครื่องเป๊ะ คัดลอกได้ 1:1
+
+   ⚠️ **อย่าอัปโหลดจากเครื่องตัวเอง** ถ้าเลี่ยงได้ — 101GB ที่ความเร็วอัปโหลดบ้าน 50 Mbps ใช้เวลา ~4.5 ชั่วโมง แต่ถ้า **ดาวน์โหลดจาก Hugging Face เข้า pod โดยตรง** จะวิ่งที่ความเร็ว datacenter (มักเกิน 1 Gbps) เหลือ ~15–30 นาที ใช้ `wget <URL> -O <ปลายทาง>` ใน terminal ของ pod โดยหา URL จากหน้า Hugging Face ของแต่ละโมเดล (ไฟล์ที่โหลดมาจากที่ไหน ก็โหลดจากที่เดิม) เฉพาะไฟล์ที่หาบน HF ไม่ได้ค่อยอัปโหลดจากเครื่อง
+
    เสร็จแล้ว **terminate pod** (volume อยู่ต่อ ไม่หาย)
 4. **Serverless → New Endpoint → Import Git Repository** → เชื่อม GitHub → เลือก repo `tripel-s-ai` → Dockerfile path: `worker/Dockerfile` (RunPod จะ build image ให้เอง ไม่ต้องมี Docker ในเครื่อง)
 5. ตั้งค่า endpoint:
-   - **GPU**: 24GB (RTX 4090) ขึ้นไป — งาน Flux.2 แนะนำ 48GB (L40S/A6000)
+   - **GPU**: SSS Sketchup to Render ต้องโหลด flux2 (33GB) + mistral (33GB) รวม ~66GB จึงต้องใช้ **80GB (A100/H100)** ถึงจะลื่น — 48GB (L40S) รันได้แต่ต้อง offload ทำให้ช้าลงมาก
    - **Network Volume**: เลือก volume จากข้อ 2
-   - **Max Workers**: 1–2 (กันค่าใช้จ่ายบาน) · **Idle Timeout**: 5s · **Execution Timeout**: 900s
+   - **Max Workers**: 1–2 (กันค่าใช้จ่ายบาน) · **Execution Timeout**: 900s
+   - **Idle Timeout**: ตั้ง **60–120 วินาที** (ไม่ใช่ 5s) — การโหลดโมเดล 66GB จาก network volume เข้า VRAM กินเวลา 1–5 นาทีต่อ cold start ถ้า worker ดับทุกครั้งที่ว่าง ผู้ใช้จะรอนานมากทุกครั้ง การเปิดค้างไว้ครู่หนึ่งแลกกับค่า GPU เพิ่มเล็กน้อยคุ้มกว่ามาก
 6. จดค่า:
    - **Endpoint ID** (หน้า endpoint) → `RUNPOD_ENDPOINT_ID`
    - **API key** (Settings → API Keys → Create) → `RUNPOD_API_KEY`
