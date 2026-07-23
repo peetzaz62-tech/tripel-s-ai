@@ -1,0 +1,10 @@
+# keep the build context small — only worker/ is ever COPYed
+web/
+supabase/
+workflow comfy ui/
+.claude/
+.git/
+*.md
+index.html
+styles.css
+app.js
