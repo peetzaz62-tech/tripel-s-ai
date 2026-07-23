@@ -84,14 +84,20 @@ fetch "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/ae.safet
       "$M/vae/ae.safetensors"
 
 echo
-echo "=== Sketchup-to-Render workflow (~96 GB) ==="
-# FLUX.2 is new enough that the exact repo paths move around. Open the model's
-# Hugging Face page, right-click the download arrow next to the file, copy the
-# link (it looks like .../resolve/main/<filename>) and paste it below.
-fetch "PASTE_FLUX2_DEV_URL" \
+echo "=== Sketchup-to-Render workflow (~100 GB) ==="
+# flux2-dev full (64GB) — GATED: accept the licence at
+# huggingface.co/black-forest-labs/FLUX.2-dev first, then HF_TOKEN downloads it
+fetch "https://huggingface.co/black-forest-labs/FLUX.2-dev/resolve/main/flux2-dev.safetensors" \
       "$M/diffusion_models/flux2-dev.safetensors"
-fetch "PASTE_MISTRAL_URL" \
+# mistral bf16 text encoder (35.6GB) — public (Comfy-Org)
+fetch "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors" \
       "$M/text_encoders/mistral_3_small_flux2_bf16.safetensors"
+# VAE + Turbo LoRA: these exact variants aren't on a clean public URL. Send them
+# from your PC (small, quick even on home upload). From the pod, run:
+#   runpodctl receive <code>   (then the mv lines below put them in place)
+# On your PC:
+#   runpodctl send "C:\Users\peetz\Desktop\ComfyUI_windows_portable\ComfyUI\models\vae\full_encoder_small_decoder.safetensors"
+#   runpodctl send "C:\Users\peetz\Desktop\ComfyUI_windows_portable\ComfyUI\models\loras\Flux_2-Turbo-LoRA_comfyui.safetensors"
 fetch "PASTE_FLUX2_VAE_URL" \
       "$M/vae/full_encoder_small_decoder.safetensors"
 fetch "PASTE_TURBO_LORA_URL" \
