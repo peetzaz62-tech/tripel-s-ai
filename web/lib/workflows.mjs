@@ -35,7 +35,7 @@ export function buildSSSGraph(opts) {
     "45": { class_type: "ImageScaleToTotalPixels", inputs: { upscale_method: "lanczos", megapixels: opts.megapixels, resolution_steps: 1, image: ["125", 0] } },
 
     "68:38": { class_type: "CLIPLoader", inputs: { clip_name: "mistral_3_small_flux2_bf16.safetensors", type: "flux2", device: "default" } },
-    "68:12": { class_type: "UNETLoader", inputs: { unet_name: "flux2-dev.safetensors", weight_dtype: "default" } },
+    "68:12": { class_type: "UNETLoader", inputs: { unet_name: "flux2_dev_fp8mixed.safetensors", weight_dtype: "default" } },
     "68:10": { class_type: "VAELoader", inputs: { vae_name: "full_encoder_small_decoder.safetensors" } },
 
     "68:6": { class_type: "CLIPTextEncode", inputs: { text: opts.prompt, clip: ["68:38", 0] } },
