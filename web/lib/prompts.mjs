@@ -226,28 +226,68 @@ const NO_HARD_SUN = ` The daylight arrives as a broad, diffused glow through the
 //    shows a real view outside, slightly overexposed but readable.
 const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already exist in the source image. No new window, skylight, lamp or glowing panel is invented, and no object, screen, glass cover or reflective surface is turned into a light source or mistaken for an opening.`;
 
-const REAL_VIEW_OUTSIDE = ` Beyond the real glazing there is a genuine exterior appropriate to the setting and to the time of day, sky, foliage, a garden or a distant city, bright and softly overexposed but still readable, never a flat white void.`;
+// What is visible through the glazing, in two halves: WHAT is out there (the
+// user's choice) and HOW BRIGHT it reads (follows the lighting mode). Splitting
+// them fixes a real bug — the single fixed sentence asked for a "bright and
+// softly overexposed" view even in Night mode, which is a contradiction.
+// The auto + daylight combination reproduces that old sentence exactly, so the
+// default stays byte-identical to what was tested.
+const INT_VIEW_CONTENT = {
+  auto: `a genuine exterior appropriate to the setting and to the time of day, sky, foliage, a garden or a distant city`,
+  garden: `a real garden, planting and shrubs with a tree or two near the glass and soft depth behind them`,
+  forest: `real woodland close to the glass, trunks and layered foliage receding into soft depth`,
+  street: `a real street at ground level, road surface and kerb, street trees and the fronts of the buildings opposite`,
+  city: `a wide city view seen from high above the ground, rooftops and massed buildings receding to a distant horizon softened by atmospheric haze`
+};
 
-// Room views get both clauses; a close-up frame often contains no glazing at
-// all, so asking for a view through it invites one to be drawn.
-const INT_OPENINGS = NO_PHANTOM_SOURCE + REAL_VIEW_OUTSIDE;
+const INT_VIEW_EXPOSURE = {
+  day: `bright and softly overexposed but still readable, never a flat white void`,
+  evening: `under a deepening dusk sky, cooler and dimmer than the room but still clearly readable`,
+  night: `dark but still readable, showing only the light that setting really has at night — lit windows, street lamps or moonlight on foliage — never a flat black void`
+};
 
-// Four lighting choices, described by the COLOUR and SOURCE of the light rather
-// than by a clock time — that is how the user thinks about it and how the
-// fixtures actually differ. Note the deliberate absence of the words "warm" and
-// "golden" from the white option: a stray warmth word anywhere in the prompt
-// tints the whole frame orange.
-function intLightingParagraph(mode, closeup){
-  const map = {
-    white: `Lighting: the room's fixtures are switched on and emit a clean neutral-white light, the crisp daylight-balanced white of modern LED, blending with abundant soft daylight from the window. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Bright, clear and even.` + NO_HARD_SUN,
+function intViewOutsideParagraph(bg, mode){
+  const content = INT_VIEW_CONTENT[bg] || INT_VIEW_CONTENT.auto;
+  const band = mode === 'night' ? 'night' : (mode === 'evening' ? 'evening' : 'day');
+  return ` Beyond the real glazing there is ${content}, ${INT_VIEW_EXPOSURE[band]}.`;
+}
 
-    warm: `Lighting: the room's fixtures are switched on and glow a soft warm-white, spreading into pools that fall off naturally and blending with daylight from the window. The warmth lives in the glow of the lamps and the surfaces they reach; walls away from the fixtures stay neutral, and the room never turns uniformly orange.` + NO_HARD_SUN,
+// Lighting is two independent questions and used to be folded into one control:
+// what KIND of light the scene has, and whether the room's own fixtures are
+// switched on. Folding them together made "night" mean "lamps off" by
+// definition, which left the most ordinary night render of all — a warm lit
+// interior against a dark outside — impossible to ask for.
+//
+// Note the deliberate absence of the words "warm" and "golden" from the white
+// option: a stray warmth word anywhere in the prompt tints the whole frame.
+const INT_LIGHT_ON = {
+  white: `Lighting: the room's fixtures are switched on and emit a clean neutral-white light, the crisp daylight-balanced white of modern LED, blending with abundant soft daylight from the window. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Bright, clear and even.`,
 
-    evening: `Lighting: dusk outside the windows, the sky beyond fading to a cool deep blue while the room itself is lit from within by its own fixtures glowing warm. The contrast between the cool glazing and the warm interior is gentle and cinematic. Shadows are deep but stay open and detailed, never crushed to black.`,
+  warm: `Lighting: the room's fixtures are switched on and glow a soft warm-white, spreading into pools that fall off naturally and blending with daylight from the window. The warmth lives in the glow of the lamps and the surfaces they reach; walls away from the fixtures stay neutral, and the room never turns uniformly orange.`,
 
-    night: `Lighting: night, and the room's fixtures are switched off. The only light is faint ambient night light entering through the glazing, distant city or garden light and a trace of moonlight, so the room reads as a dim, cool, quiet space. Forms stay readable in the low light with soft gradation rather than solid black, and no lamp, screen or hidden source glows anywhere.`
-  };
-  return (map[mode] || map.white) + (closeup ? NO_PHANTOM_SOURCE : INT_OPENINGS);
+  evening: `Lighting: dusk outside the windows, the sky beyond fading to a cool deep blue while the room itself is lit from within by its own fixtures glowing warm. The contrast between the cool glazing and the warm interior is gentle and cinematic. Shadows are deep but stay open and detailed, never crushed to black.`,
+
+  night: `Lighting: night beyond the glazing, dark outside the glass, while the room's fixtures are switched on and glow warm. The room reads as a bright warm interior set against the darkness outside, the light spreading into pools that fall off naturally. Shadows are deep but stay open and detailed, never crushed to black.`
+};
+
+const INT_LIGHT_OFF = {
+  white: `Lighting: the room's fixtures are switched off and the room is lit entirely by abundant soft daylight through the glazing. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Bright, clear and even. No lamp, screen, cove strip or hidden source glows anywhere.`,
+
+  warm: `Lighting: the room's fixtures are switched off and the room is lit entirely by daylight through the glazing, carrying the gentle warmth of late afternoon. The warmth lives in the light where it lands; surfaces away from the window stay neutral, and the room never turns uniformly orange. No lamp, screen, cove strip or hidden source glows anywhere.`,
+
+  evening: `Lighting: dusk outside the windows, the sky beyond fading to a cool deep blue, and the room's fixtures are switched off. The room is lit only by the last of that daylight, dim and cool and even, forms still readable in soft gradation rather than solid black. No lamp, screen, cove strip or hidden source glows anywhere.`,
+
+  night: `Lighting: night, and the room's fixtures are switched off. The only light is faint ambient night light entering through the glazing, distant city or garden light and a trace of moonlight, so the room reads as a dim, cool, quiet space. Forms stay readable in the low light with soft gradation rather than solid black, and no lamp, screen or hidden source glows anywhere.`
+};
+
+function intLightingParagraph(mode, fixtures, bg, closeup){
+  const m = INT_LIGHT_ON[mode] ? mode : 'white';
+  const base = (fixtures === 'off' ? INT_LIGHT_OFF : INT_LIGHT_ON)[m];
+  // Only the two daylight modes can produce a hard sun shaft worth banning.
+  const sun = (m === 'white' || m === 'warm') ? NO_HARD_SUN : '';
+  // A close-up frame often contains no glazing at all, so asking for a view
+  // through it invites one to be drawn.
+  return base + sun + NO_PHANTOM_SOURCE + (closeup ? '' : intViewOutsideParagraph(bg, m));
 }
 
 function intFocusParagraph(focus, closeup){
@@ -258,6 +298,8 @@ function intFocusParagraph(focus, closeup){
 
 export function buildInteriorPrompt(p = {}){
   const mode = p.intLight || 'white';
+  const fixtures = p.intFixtures || 'on';
+  const bg = p.intBg || 'auto';
   const closeup = (p.intShot || 'room') === 'closeup';
   const focus = p.intFocus || 'deep';
   const extra = String(p.intExtra || '').trim();
@@ -266,7 +308,7 @@ export function buildInteriorPrompt(p = {}){
     ? [INT_CAMERA_CLOSEUP, INT_FIDELITY, INT_CLOSEUP_DETAIL, INT_LIGHT_PHYSICS, INT_PHOTO_QUALITY].join('\n\n')
     : INT_CORE;
 
-  const parts = [core, intLightingParagraph(mode, closeup), intFocusParagraph(focus, closeup)];
+  const parts = [core, intLightingParagraph(mode, fixtures, bg, closeup), intFocusParagraph(focus, closeup)];
   if(extra) parts.push(`Additional Instructions:\n${extra}`);
   // Room mode deliberately has no trailing "final check" paragraph: the version
   // that carried one is the version that lost the wardrobe, and the run that
