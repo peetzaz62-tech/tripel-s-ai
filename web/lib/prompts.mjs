@@ -161,18 +161,20 @@ export function buildSemiOutdoorPrompt(p = {}){
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
-// Interior — v6, the text below is exactly what was run and reviewed on
-// 2026-07-26 (café, cat/turntable room view, cat/turntable close-up).
+// Interior — v7. Core chosen by same-seed A/B on 2026-07-27 across two sources
+// (a bedroom with flat white wardrobe panels, a café with a terracotta tile
+// wall), run against a longer variant that spelled out material rules and a
+// shorter one that dropped them entirely. This is the variant peetz picked.
 //
 // Three rules learned the hard way:
 //
-// 1. Never PROPOSE a material in the core. Prompt text describing a material
-//    reads as an instruction to use it, not as a description of what is there:
-//    "warm walnut panelling / teal blue accent wall" repainted a blue wall
-//    turquoise and darkened light oak to walnut, and the old room-type presets
-//    ("leather with natural grain, velvet with a directional nap") silently
-//    swapped materials the customer had modelled. Naming materials to COMPARE
-//    them is different and is the one thing that works — see INT_FIDELITY.
+// 1. Never name a material in the core — not even to forbid it. Prompt text
+//    mentioning a material makes it more likely to appear, so a ban list reads
+//    partly as a suggestion. The old room-type presets proposed materials
+//    outright ("leather with natural grain, velvet with a directional nap")
+//    and silently swapped what the customer had modelled, which is why Room
+//    Type is gone; the later ban list was subtler but measurably worse than
+//    saying nothing at all.
 // 2. No lighting words in the core. An earlier core carrying "warm afternoon
 //    sunlight" turned every render orange and dark regardless of the picker.
 //    Every light/time word lives in intLightingParagraph and nowhere else.
@@ -188,36 +190,24 @@ const INT_CAMERA = `Convert this 3D interior render into a photorealistic photog
 // free to sprout grain. Naming both cases side by side is what finally held.
 // This is also why the old three-paragraph version is gone: length was not the
 // lever, the two-way comparison was.
-// "wood" broadened into a list of three. Standing alone as the single named
-// material it was itself a nudge to draw wood, which is the drift being
-// reported; inside a list it still protects a real timber surface without
-// being the one material the sentence puts in the model's mind.
-const INT_FIDELITY = `Every surface keeps the exact colour, tone and pattern it already has in the source, and keeps the material it already is: a surface drawn with a wood grain, a stone veining or a woven pattern keeps that same material in the same tone, a surface that is flat painted stays flat painted. Dark surfaces stay dark and pale surfaces stay pale. Making the photograph brighter never makes a material lighter.`;
-
-// Replaces a per-material enumeration ("wood shows grain, stone shows veining,
-// fabric shows weave..."). The enumeration primed those materials into rooms
-// that had none of them — naming wood in the core is itself a nudge to draw
-// wood. Asking for texture "appropriate to whatever finish each surface already
-// is" gets the same physical realism without proposing any material.
-const INT_CAMERA_ADDS = `Add only what a real camera adds: true light behaviour with bounce and soft contact shadows, fine micro-texture appropriate to whatever finish each surface already is, believable reflections, natural depth of field, subtle sensor grain, true-to-life colour, no HDR look.`;
-
-// Sits immediately after the "add micro-texture" instruction because that is
-// the instruction it has to qualify — asked to add texture, the model reaches
-// for the richest material it can justify and a plain panel becomes timber.
+// Not one material is named anywhere in this core, deliberately. Naming them —
+// even to forbid them — is what was doing the damage. A previous version listed
+// the materials a plain surface must never become ("timber, stone, brick,
+// marble, tile") and it measurably made things worse: in a same-seed A/B on
+// 2026-07-27 it washed a terracotta tile wall to cream and lifted a near-black
+// ceiling and floor to mid-grey, while this version held all three.
 //
-// Both halves of the grain sentence are load-bearing. An earlier version of
-// this rule only said plain stays plain, and it stripped the grain off a
-// genuinely wooden cabinet; the "where the source does draw them" half is what
-// keeps that from happening again. The hue sentence is here because the drift
-// was reported as colour change as much as material change, and "keeps its
-// colour" alone was being satisfied by keeping only the lightness.
-const INT_NO_UPGRADE = `No surface is upgraded into a richer material than it is. A plain painted, laminated or lacquered surface gains only the faint texture and slight sheen that finish really has; it never becomes timber, stone, brick, marble, tile or patterned fabric. Grain, veining, joints and weave appear only where the source already draws them, and where the source does draw them they stay exactly as drawn. Colour holds its hue as firmly as its lightness: a grey stays grey, a white stays white, a cool colour stays cool, and no surface drifts toward warm brown, beige or timber tones.`;
+// "never by what would look better" is doing most of the work. The failure was
+// never that the model misread the source; it was that it improved on it.
+const INT_FIDELITY = `Enhance what is already in the image rather than changing it. Every surface keeps the material, colour, tone and pattern it already has; nothing is reinterpreted as a different material and nothing is restyled. What each surface is made of is decided entirely by the source image, never by what would look better. Dark surfaces stay dark and pale surfaces stay pale, and making the photograph brighter never makes a material lighter.`;
+
+const INT_CAMERA_ADDS = `Add only what a real camera adds: each surface gains the true micro-texture, sheen and reflectivity of the exact material it already is, light behaves physically with bounce and soft contact shadows, natural depth of field, subtle sensor grain, true-to-life colour, no HDR look.`;
 
 const INT_LIGHT_PHYSICS = `Light behaves physically: it bounces between surfaces picking up their colour, falls off with distance, wraps softly around edges, and settles into gentle ambient occlusion where surfaces meet.`;
 
 const INT_PHOTO_QUALITY = `The result is a straight photograph taken with a full-frame camera and a sharp prime lens: natural dynamic range, subtle sensor grain, true-to-life colour, no HDR look, no oversaturation, no artificial sharpening.`;
 
-const INT_CORE = [INT_CAMERA, INT_FIDELITY, INT_CAMERA_ADDS, INT_NO_UPGRADE].join('\n\n');
+const INT_CORE = [INT_CAMERA, INT_FIDELITY, INT_CAMERA_ADDS].join('\n\n');
 
 // Close-up shot type. A detail view is a different photograph from a room view:
 // a real lens this close cannot hold everything sharp, there is no "room" to
@@ -344,7 +334,7 @@ export function buildInteriorPrompt(p = {}){
   const extra = String(p.intExtra || '').trim();
 
   const core = closeup
-    ? [INT_CAMERA_CLOSEUP, INT_FIDELITY, INT_CLOSEUP_DETAIL, INT_NO_UPGRADE, INT_LIGHT_PHYSICS, INT_PHOTO_QUALITY].join('\n\n')
+    ? [INT_CAMERA_CLOSEUP, INT_FIDELITY, INT_CLOSEUP_DETAIL, INT_LIGHT_PHYSICS, INT_PHOTO_QUALITY].join('\n\n')
     : INT_CORE;
 
   const parts = [core, intLightingParagraph(mode, fixtures, bg, closeup), intFocusParagraph(focus, closeup)];
