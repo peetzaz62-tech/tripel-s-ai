@@ -358,14 +358,21 @@ const NO_HARD_SUN = ` The daylight arrives as a broad, diffused glow through the
 // 2. Windows came back as flat white voids.
 const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already exist in the source image. No new window, skylight, lamp or glowing panel is invented, and no object, screen, glass cover or reflective surface is turned into a light source or mistaken for an opening.`;
 
-// What is visible through the glazing, in two halves: WHAT is out there (the
-// user's choice) and HOW BRIGHT it reads (follows the lighting mode). Splitting
-// them fixes a real bug — the single fixed sentence asked for a "bright and
-// softly overexposed" view even in Night mode, which is a contradiction.
-// The auto + daylight combination reproduces that old sentence exactly, so the
-// default stays byte-identical to what was tested.
+// Auto no longer asks for an exterior to be composed. Telling the model there
+// is "a genuine exterior appropriate to the setting" beyond the glass made it
+// invent landscapes and skylines that were never in the source — the fix for
+// blank white windows overshot into scene invention. Auto now preserves what
+// the source shows and only rules out the flat void; a view is drawn only when
+// the user picks one.
+const INT_VIEW_KEEP = ` Whatever is already visible beyond the glazing in the source stays what it is, brought up to photographic quality rather than replaced with a different scene. No landscape, skyline, garden or horizon is composed that the source does not already show. Where the source gives only blank white beyond the glass, it reads as bright open sky, nothing more.`;
+
+// Anchors an explicitly chosen view so it cannot start remodelling the room.
+const INT_VIEW_GUARD = ` This view sits only behind glazing that already exists in the source image; no wall is opened up, no opening changes size, and the room's enclosure is unchanged.`;
+
+// What is out there (the user's choice) and how bright it reads (follows the
+// lighting mode). Splitting the two fixes a contradiction in the old fixed
+// sentence, which asked for a "bright and softly overexposed" view even at night.
 const INT_VIEW_CONTENT = {
-  auto: `a genuine exterior appropriate to the setting and to the time of day, sky, foliage, a garden or a distant city`,
   garden: `a real garden, planting and shrubs with a tree or two near the glass and soft depth behind them`,
   forest: `real woodland close to the glass, trunks and layered foliage receding into soft depth`,
   street: `a real street at ground level, road surface and kerb, street trees and the fronts of the buildings opposite`,
@@ -379,9 +386,10 @@ const INT_VIEW_EXPOSURE = {
 };
 
 function intViewOutsideParagraph(bg, mode){
-  const content = INT_VIEW_CONTENT[bg] || INT_VIEW_CONTENT.auto;
+  const content = INT_VIEW_CONTENT[bg];
+  if(!content) return INT_VIEW_KEEP; // auto, or an unknown value
   const band = mode === 'night' ? 'night' : (mode === 'evening' ? 'evening' : 'day');
-  return ` Beyond the real glazing there is ${content}, ${INT_VIEW_EXPOSURE[band]}.`;
+  return ` Beyond the real glazing there is ${content}, ${INT_VIEW_EXPOSURE[band]}.` + INT_VIEW_GUARD;
 }
 
 // Lighting is two independent questions and used to be folded into one control:
@@ -402,14 +410,21 @@ const INT_LIGHT_ON = {
   night: `Lighting: night beyond the glazing, dark outside the glass, while the room's fixtures are switched on and glow warm. The room reads as a bright warm interior set against the darkness outside, the light spreading into pools that fall off naturally. Shadows are deep but stay open and detailed, never crushed to black.`
 };
 
+// "Fixtures off" kept leaking — a downlight still bloomed, a pendant still threw
+// a warm pool. A single "no lamp glows anywhere" sentence is too abstract to
+// catch every fitting, so this names the fittings, states what an unlit one
+// looks like, and bans the secondary evidence (halo, bloom, pool, spill)
+// separately from the glow itself.
+const FIXTURES_OFF = ` Every light fitting in the room is switched off and stays off: ceiling lights, downlights, pendants, table and floor lamps, wall lights, cove and strip lighting, spotlights, screens and any decorative bulb. Each fitting reads as an unlit object — dark glass, dark shade, a filament that is not glowing — with no halo, no bloom, no warm pool on the ceiling, wall or floor beneath it, and no light spill of any kind coming from it. Every bit of illumination in the room arrives from outside.`;
+
 const INT_LIGHT_OFF = {
-  white: `Lighting: the room's fixtures are switched off and the room is lit entirely by abundant soft daylight through the glazing. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Bright, clear and even. No lamp, screen, cove strip or hidden source glows anywhere.`,
+  white: `Lighting: the room is lit entirely by abundant soft daylight through the glazing. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Bright, clear and even.` + FIXTURES_OFF,
 
-  warm: `Lighting: the room's fixtures are switched off and the room is lit entirely by daylight through the glazing, carrying the gentle warmth of late afternoon. The warmth lives in the light where it lands; surfaces away from the window stay neutral, and the room never turns uniformly orange. No lamp, screen, cove strip or hidden source glows anywhere.`,
+  warm: `Lighting: the room is lit entirely by daylight through the glazing, carrying the gentle warmth of late afternoon. The warmth lives in the light where it lands; surfaces away from the window stay neutral, and the room never turns uniformly orange.` + FIXTURES_OFF,
 
-  evening: `Lighting: dusk outside the windows, the sky beyond fading to a cool deep blue, and the room's fixtures are switched off. The room is lit only by the last of that daylight, dim and cool and even, forms still readable in soft gradation rather than solid black. No lamp, screen, cove strip or hidden source glows anywhere.`,
+  evening: `Lighting: dusk outside the windows, the sky beyond fading to a cool deep blue. The room is lit only by the last of that daylight, dim and cool and even, forms still readable in soft gradation rather than solid black.` + FIXTURES_OFF,
 
-  night: `Lighting: night, and the room's fixtures are switched off. The only light is faint ambient night light entering through the glazing, distant city or garden light and a trace of moonlight, so the room reads as a dim, cool, quiet space. Forms stay readable in the low light with soft gradation rather than solid black, and no lamp, screen or hidden source glows anywhere.`
+  night: `Lighting: night. The only light is faint ambient night light entering through the glazing, distant city or garden light and a trace of moonlight, so the room reads as a dim, cool, quiet space. Forms stay readable in the low light with soft gradation rather than solid black.` + FIXTURES_OFF
 };
 
 function intLightingParagraph(mode, fixtures, bg, closeup){
