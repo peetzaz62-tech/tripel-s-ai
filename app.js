@@ -421,12 +421,14 @@ const INT_LIGHT_ON = {
   night: `Lighting: night beyond the glazing, dark outside the glass, while the room's fixtures are switched on and glow warm. The room reads as a bright warm interior set against the darkness outside, the light spreading into pools that fall off naturally. Shadows are deep but stay open and detailed, never crushed to black.`
 };
 
-// "Fixtures off" kept leaking — a downlight still bloomed, a pendant still threw
-// a warm pool. A single "no lamp glows anywhere" sentence is too abstract to
-// catch every fitting, so this names the fittings, states what an unlit one
-// looks like, and bans the secondary evidence (halo, bloom, pool, spill)
-// separately from the glow itself.
-const FIXTURES_OFF = ` Every light fitting in the room is switched off and stays off: ceiling lights, downlights, pendants, table and floor lamps, wall lights, cove and strip lighting, spotlights, screens and any decorative bulb. Each fitting reads as an unlit object — dark glass, dark shade, a filament that is not glowing — with no halo, no bloom, no warm pool on the ceiling, wall or floor beneath it, and no light spill of any kind coming from it. Every bit of illumination in the room arrives from outside.`;
+// This was once a long clause listing nine kinds of fitting and everything an
+// unlit one must not do. Two same-seed A/Bs on 2026-07-27 showed the list
+// hurting on both counts: with it, a wall sconce still bled a faint glow and a
+// terracotta wall washed out, and — the giveaway — the word "screens" in the
+// list turned a small white paper holder on a café table into a black
+// electronic reader. Naming a thing to forbid it still puts it in the picture.
+// The short version left the sconces properly dark and the paper holder alone.
+const FIXTURES_OFF = ` The room's own fittings are not lit; every bit of its illumination arrives from outside.`;
 
 const INT_LIGHT_OFF = {
   white: `Lighting: the room is lit entirely by abundant soft daylight through the glazing. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Bright, clear and even.` + FIXTURES_OFF,
