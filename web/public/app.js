@@ -113,24 +113,22 @@ const PROMPT_MASK = '🔒 Prompt generated and ready to use — hidden to protec
 function applyPromptType(){
   const type = $('sPromptType').value;
   updatePeopleDescVisibility();
-  if(type === 'exterior'){
+  if(type === 'exterior' || type === 'semiOutdoor'){
     $('sExtControls').style.display = '';
     $('sIntControls').style.display = 'none';
     $('sPrompt').readOnly = true;
     hiddenPromptCache = ''; // prompt is now built server-side
     $('sPrompt').value = PROMPT_MASK;
-  } else if(type === 'semiOutdoor'){
-    $('sExtControls').style.display = '';
-    $('sIntControls').style.display = 'none';
-    $('sPrompt').readOnly = true;
-    hiddenPromptCache = ''; // prompt is now built server-side
-    $('sPrompt').value = PROMPT_MASK;
+    $('sGuidance').value = '4';
   } else if(type === 'interior'){
     $('sExtControls').style.display = 'none';
     $('sIntControls').style.display = '';
     $('sPrompt').readOnly = true;
     hiddenPromptCache = ''; // prompt is now built server-side
     $('sPrompt').value = PROMPT_MASK;
+    // Interior was validated at 3.5, exterior at 4 — the two prompt sets differ
+    // enough that one guidance value does not suit both. Still editable after.
+    $('sGuidance').value = '3.5';
   } else {
     $('sExtControls').style.display = 'none';
     $('sIntControls').style.display = 'none';
@@ -149,11 +147,23 @@ function refreshExtPrompt(){
 ['sExtTime','sExtClouds','sExtWeather','sExtBackground','sExtView','sExtPeople','sExtPeopleDesc','sExtCars','sExtFocus','sExtExtra'].forEach(id=>{
   $(id).addEventListener('input', refreshExtPrompt);
 });
-['sIntRoom','sIntLighting','sIntFocus','sIntExtra'].forEach(id=>{
+// A close-up forces the shallow depth of field a real lens has at that distance,
+// so the Focus Mode picker has no effect there — grey it out instead of leaving
+// a control that silently does nothing.
+function updateIntFocusAvailability(){
+  const closeup = $('sIntShot').value === 'closeup';
+  const sel = $('sIntFocus');
+  sel.disabled = closeup;
+  const field = sel.closest('.field');
+  if(field) field.style.opacity = closeup ? '0.45' : '';
+}
+['sIntLight','sIntShot','sIntFocus','sIntExtra'].forEach(id=>{
   $(id).addEventListener('input', ()=>{
+    updateIntFocusAvailability();
     if($('sPromptType').value === 'interior') hiddenPromptCache = ''; // prompt is now built server-side
   });
 });
+try{ updateIntFocusAvailability(); }catch(e){ console.error('updateIntFocusAvailability init failed:', e); }
 try{ applyPromptType(); }catch(e){ console.error('applyPromptType init failed:', e); } // set initial value (Exterior by default)
 
 // ---------------------------------------------------------------------------
@@ -322,7 +332,7 @@ async function runWorkflow(){
       background: $('sExtBackground').value, view: $('sExtView').value,
       people: $('sExtPeople').value, peopleDesc: $('sExtPeopleDesc').value,
       cars: $('sExtCars').value, focus: $('sExtFocus').value, extra: $('sExtExtra').value,
-      room: $('sIntRoom').value, lighting: $('sIntLighting').value,
+      intLight: $('sIntLight').value, intShot: $('sIntShot').value,
       intFocus: $('sIntFocus').value, intExtra: $('sIntExtra').value,
       turbo: $('sTurbo').value === 'true',
       guidance: parseFloat($('sGuidance').value),
