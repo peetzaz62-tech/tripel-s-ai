@@ -224,7 +224,7 @@ const NO_HARD_SUN = ` The daylight arrives as a broad, diffused glow through the
 //    translucent is a candidate to be mistaken for an opening.
 // 2. Windows came back as flat white voids. The reference photography always
 //    shows a real view outside, slightly overexposed but readable.
-const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already exist in the source image. No new window, skylight, lamp or glowing panel is invented, and no object, screen, glass cover or reflective surface is turned into a light source or mistaken for an opening.`;
+const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already exist in the source image. Every solid wall and panel in the source stays solid and unbroken: no new window, glass panel or skylight appears anywhere, and no existing opening changes its size, shape or position. No new lamp or glowing panel is invented, and no object, screen, glass cover or reflective surface is turned into a light source or mistaken for an opening.`;
 
 // Auto no longer asks for an exterior to be composed. Telling the model there
 // is "a genuine exterior appropriate to the setting" beyond the glass made it
@@ -234,8 +234,12 @@ const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already 
 // the user picks one.
 const INT_VIEW_KEEP = ` Whatever is already visible beyond the glazing in the source stays what it is, brought up to photographic quality rather than replaced with a different scene. No landscape, skyline, garden or horizon is composed that the source does not already show. Where the source gives only blank white beyond the glass, it reads as bright open sky, nothing more.`;
 
-// Anchors an explicitly chosen view so it cannot start remodelling the room.
-const INT_VIEW_GUARD = ` This view sits only behind glazing that already exists in the source image; no wall is opened up, no opening changes size, and the room's enclosure is unchanged.`;
+// A chosen view has to be phrased as a CONDITION, never as a fact. Written as a
+// statement — "beyond the glazing there is a city view" — the model treats it as
+// something the picture must contain and cuts new windows into solid walls to
+// make room for it. Reported 2026-07-27: garden and city both punched openings
+// into a blank wall that the correct render left solid.
+const INT_VIEW_GUARD = ` This governs only what is seen through openings that already exist: every solid wall in the source stays solid, no new window or glass panel is cut into it, and where the source has no opening none is added.`;
 
 // What is out there (the user's choice) and how bright it reads (follows the
 // lighting mode). Splitting the two fixes a contradiction in the old fixed
@@ -257,7 +261,7 @@ function intViewOutsideParagraph(bg, mode){
   const content = INT_VIEW_CONTENT[bg];
   if(!content) return INT_VIEW_KEEP; // auto, or an unknown value
   const band = mode === 'night' ? 'night' : (mode === 'evening' ? 'evening' : 'day');
-  return ` Beyond the real glazing there is ${content}, ${INT_VIEW_EXPOSURE[band]}.` + INT_VIEW_GUARD;
+  return ` Where the source image already shows glazing with something visible through it, what is seen through that glazing reads as ${content}, ${INT_VIEW_EXPOSURE[band]}.` + INT_VIEW_GUARD;
 }
 
 // Lighting is two independent questions and used to be folded into one control:
