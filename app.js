@@ -301,44 +301,109 @@ function buildSemiOutdoorPromptP(p = {}){
 }
 
 // ---------------------------------------------------------------------------
-// Interior
-const INT_CORE = [
-`Turn this interior 3D render into a real photograph of the exact same room, shot from the exact same camera position with identical framing and perspective. The result is a straight photograph — nothing may look like CGI, a rendering, or an illustration.`,
-`Preserve exactly: every wall, ceiling, column, window, door, furniture piece, and fixture in its exact position, size, and proportion. Materials keep their original colors and tones, upgraded to photographic realism — flooring with true grain, joints, and subtle wear; fabrics with real weave and natural folds; painted walls with faint real texture; metal and glass with physically accurate reflections.`,
-`Color & Photographic Quality: neutral white balance, true-to-source colors, subtle sensor grain, believable contact shadows and reflections. No HDR look, oversaturation, or artificial sharpening.`
-].join('\n\n');
+// Interior — v6. Kept identical to web/lib/prompts.mjs; this file is the
+// standalone tool that talks to ComfyUI directly, that file is the hosted SaaS.
+// If you change one, change the other.
+//
+// The text below is exactly what was run and reviewed on 2026-07-26 (café,
+// cat/turntable room view, cat/turntable close-up).
+//
+// Three rules learned the hard way:
+//
+// 1. Never PROPOSE a material here. Prompt text describing a material reads as
+//    an instruction to use it, not as a description of what is there. The old
+//    room-type presets did exactly that ("leather with natural grain, velvet
+//    with a directional nap") and silently swapped materials the customer had
+//    modelled, which is why Room Type is gone. Naming materials to COMPARE
+//    them is different and is the one thing that works — see INT_FIDELITY.
+// 2. No lighting words in the core. An earlier core carrying "warm afternoon
+//    sunlight" turned every render orange regardless of the picker.
+// 3. Shorter beats longer. A bloated core contradicts itself.
 
-function intRoomParagraph(room){
+const INT_CAMERA = `Convert this 3D interior render into a photorealistic photograph of the exact same room, from the exact same camera position and framing.`;
+
+// The material lock, stated in BOTH directions in a single sentence. Every
+// one-directional version failed on one half of the problem: a rule that only
+// said "flat surfaces stay flat" stripped the grain off a genuinely wooden oak
+// cabinet, and a rule that only said "wood stays wood" left flat wardrobe doors
+// free to sprout grain.
+const INT_FIDELITY = `Every surface keeps the exact colour, tone and pattern it already has in the source, and keeps the material it already is: a surface drawn with wood grain stays that same wood in the same tone, a surface that is flat painted stays flat painted. Dark surfaces stay dark and pale surfaces stay pale. Making the photograph brighter never makes a material lighter.`;
+
+// Replaces a per-material enumeration ("wood shows grain, stone shows veining,
+// fabric shows weave..."). The enumeration primed those materials into rooms
+// that had none of them — naming wood is itself a nudge to draw wood.
+const INT_CAMERA_ADDS = `Add only what a real camera adds: true light behaviour with bounce and soft contact shadows, fine micro-texture appropriate to whatever finish each surface already is, believable reflections, natural depth of field, subtle sensor grain, true-to-life colour, no HDR look.`;
+
+const INT_LIGHT_PHYSICS = `Light behaves physically: it bounces between surfaces picking up their colour, falls off with distance, wraps softly around edges, and settles into gentle ambient occlusion where surfaces meet.`;
+
+const INT_PHOTO_QUALITY = `The result is a straight photograph taken with a full-frame camera and a sharp prime lens: natural dynamic range, subtle sensor grain, true-to-life colour, no HDR look, no oversaturation, no artificial sharpening.`;
+
+const INT_CORE = [INT_CAMERA, INT_FIDELITY, INT_CAMERA_ADDS].join('\n\n');
+
+// Close-up shot type. A detail view is a different photograph from a room view:
+// a real lens this close cannot hold everything sharp, there is no "room" to
+// light, and material texture is the subject rather than a finishing touch.
+const INT_CAMERA_CLOSEUP = `Convert this 3D interior detail view into a photorealistic close-up photograph of the exact same objects, shot from the exact same camera position with identical framing and perspective. This is a detail shot, not a room view: the objects in frame are the subject.`;
+
+const INT_CLOSEUP_DETAIL = `At this distance the materials themselves are the subject and resolve fully: wood shows open pores, ray fleck and the direction of its grain; fabric and rugs show individual tufts, weave and pile; paper and book cloth show fibre and slightly softened edges; vinyl shows fine concentric groove lines catching the light; metal shows brushed direction and tiny surface marks; painted surfaces show the faint texture of a real sprayed or rolled finish. Fine dust, soft edge wear and the small irregularities of real objects are visible, while the objects stay clean and well kept.`;
+
+// Daylight arrives as a large diffused source, never as a beam. Direct sun
+// throwing hard-edged patches and window-frame shadow bands across the floor
+// reads as harsh and CG-like.
+const NO_HARD_SUN = ` The daylight arrives as a broad, diffused glow through the glazing rather than as a direct beam: there are no hard-edged shafts of sunlight, no bright sun patches and no window-frame shadow patterns striped across the floor, walls or furniture. Shadows stay soft and open.`;
+
+// Two failures this fixes, both seen in testing:
+// 1. A turntable's clear acrylic dust cover was read as a window and the model
+//    invented a shaft of light blazing off it onto the wall.
+// 2. Windows came back as flat white voids.
+const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already exist in the source image. No new window, skylight, lamp or glowing panel is invented, and no object, screen, glass cover or reflective surface is turned into a light source or mistaken for an opening.`;
+
+const REAL_VIEW_OUTSIDE = ` Beyond the real glazing there is a genuine exterior appropriate to the setting and to the time of day, sky, foliage, a garden or a distant city, bright and softly overexposed but still readable, never a flat white void.`;
+
+// Room views get both clauses; a close-up frame often contains no glazing at
+// all, so asking for a view through it invites one to be drawn.
+const INT_OPENINGS = NO_PHANTOM_SOURCE + REAL_VIEW_OUTSIDE;
+
+// Four lighting choices, described by the COLOUR and SOURCE of the light rather
+// than by a clock time. Note the deliberate absence of "warm" and "golden" from
+// the white option: a stray warmth word anywhere tints the whole frame orange.
+function intLightingParagraph(mode, closeup){
   const map = {
-    bedroom: `Room — Bedroom: distinguish soft materials correctly as modeled — leather with natural grain and a soft satin sheen, velvet with a directional light-catching nap, woven fabric with visible weave, fur or sheepskin with individual soft strands. Bedding has real weight and natural folds; wood shows soft natural grain. Calm, tidy, lived-in feel.`,
-    living: `Room — Living Room: distinguish soft materials correctly as modeled — leather with natural grain, subtle creasing, and a satin sheen; velvet with a directional light-catching nap; woven fabric with visible weave; rugs with real pile texture. Wood furniture shows natural grain and subtle wear. Open, welcoming feel.`,
-    kitchen: `Room — Kitchen: countertops with authentic veining and subtle reflections, cabinetry with real wood grain or painted texture and believable hardware, appliances with accurate brushed-metal reflections. Clean but lived-in, not sterile.`,
-    bathroom: `Room — Bathroom: tile and stone with real grout lines and subtle sheen, keeping every tile's exact color and pattern; glass and mirrors clean, dry, and accurately reflective; fixtures with physically correct specular highlights. No added props, towels, or accessories.`
+    white: `Lighting: the room's fixtures are switched on and emit a clean neutral-white light, the crisp daylight-balanced white of modern LED, blending with abundant soft daylight from the window. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Bright, clear and even.` + NO_HARD_SUN,
+
+    warm: `Lighting: the room's fixtures are switched on and glow a soft warm-white, spreading into pools that fall off naturally and blending with daylight from the window. The warmth lives in the glow of the lamps and the surfaces they reach; walls away from the fixtures stay neutral, and the room never turns uniformly orange.` + NO_HARD_SUN,
+
+    evening: `Lighting: dusk outside the windows, the sky beyond fading to a cool deep blue while the room itself is lit from within by its own fixtures glowing warm. The contrast between the cool glazing and the warm interior is gentle and cinematic. Shadows are deep but stay open and detailed, never crushed to black.`,
+
+    night: `Lighting: night, and the room's fixtures are switched off. The only light is faint ambient night light entering through the glazing, distant city or garden light and a trace of moonlight, so the room reads as a dim, cool, quiet space. Forms stay readable in the low light with soft gradation rather than solid black, and no lamp, screen or hidden source glows anywhere.`
   };
-  return map[room] || map.living;
+  return (map[mode] || map.white) + (closeup ? NO_PHANTOM_SOURCE : INT_OPENINGS);
 }
 
-function intLightingParagraph(lighting){
-  if(lighting === 'on') return `Artificial Lighting — On: the fixtures already modeled in the image glow a gentle warm-white (real LED warmth, not orange), light spreading and falling off naturally in soft pools, blended believably with existing daylight without blown highlights. No invented fixtures; no cove or hidden lighting unless modeled or requested.`;
-  return `Artificial Lighting — Off: all fixtures stay off; the room is lit only by soft diffused daylight with a faint natural warmth. Shadows are pale and soft-edged with gentle ambient occlusion in corners and under furniture — bright, airy, and clear. No off-camera light sources, sun rays, or light beams.`;
-}
-
-function intFocusParagraph(focus){
-  if(focus === 'shallow') return `Focus: shallow depth of field — the main furniture grouping critically sharp, immediate foreground and far background in smooth optical blur.`;
-  return `Focus: deep depth of field — the whole room sharp from front to back, no blur or bokeh anywhere.`;
+function intFocusParagraph(focus, closeup){
+  if(closeup) return `Focus: the natural shallow depth of field of a lens working this close, the main subject critically sharp, with focus falling off gently into soft optical blur toward the back of the frame.`;
+  if(focus === 'shallow') return `Focus: shallow depth of field, the main furniture grouping critically sharp, immediate foreground and far background in smooth optical blur. The result is a straight photograph, not a rendering.`;
+  return `Focus: deep depth of field, the whole room sharp from front to back. The result is a straight photograph, not a rendering.`;
 }
 
 function buildInteriorPromptP(p = {}){
-  const room = p.room || 'living';
-  const lighting = p.lighting || 'off';
+  const mode = p.intLight || 'white';
+  const closeup = (p.intShot || 'room') === 'closeup';
   const focus = p.intFocus || 'deep';
   const extra = String(p.intExtra || '').trim();
 
-  const extras = [intRoomParagraph(room), intLightingParagraph(lighting), intFocusParagraph(focus)];
-  if(extra) extras.push(`Additional Instructions:\n${extra}`);
+  const core = closeup
+    ? [INT_CAMERA_CLOSEUP, INT_FIDELITY, INT_CLOSEUP_DETAIL, INT_LIGHT_PHYSICS, INT_PHOTO_QUALITY].join('\n\n')
+    : INT_CORE;
 
-  return INT_CORE + '\n\n' + extras.join('\n\n')
-    + '\n\nFinal check: an ultra-detailed high-resolution photograph in which every wall, opening, furniture piece, and material color matches the source image exactly, and the frame contains no figure, object, or element that was absent from the source image.';
+  const parts = [core, intLightingParagraph(mode, closeup), intFocusParagraph(focus, closeup)];
+  if(extra) parts.push(`Additional Instructions:\n${extra}`);
+  // Room mode deliberately has no trailing "final check" paragraph: the version
+  // that carried one is the version that lost the wardrobe, and the run that
+  // passed ends on the focus line. Close-up keeps its own, as tested.
+  if(closeup) parts.push(`Final check: an ultra-detailed high-resolution photograph in which every object, its material and its colour match the source image exactly, and the frame contains no object or element that was absent from the source image.`);
+
+  return parts.join('\n\n');
 }
 
 // DOM adapters — read the UI controls and delegate to the shared builders above
@@ -354,7 +419,7 @@ function buildExteriorPrompt(){ return buildExteriorPromptP(readExtParams()); }
 function buildSemiOutdoorPrompt(){ return buildSemiOutdoorPromptP(readExtParams()); }
 function buildInteriorPrompt(){
   return buildInteriorPromptP({
-    room: $('sIntRoom').value, lighting: $('sIntLighting').value,
+    intLight: $('sIntLight').value, intShot: $('sIntShot').value,
     intFocus: $('sIntFocus').value, intExtra: $('sIntExtra').value
   });
 }
@@ -375,18 +440,23 @@ function applyPromptType(){
     $('sPrompt').readOnly = true;
     hiddenPromptCache = buildExteriorPrompt();
     $('sPrompt').value = PROMPT_MASK;
+    $('sGuidance').value = '4';
   } else if(type === 'semiOutdoor'){
     $('sExtControls').style.display = '';
     $('sIntControls').style.display = 'none';
     $('sPrompt').readOnly = true;
     hiddenPromptCache = buildSemiOutdoorPrompt();
     $('sPrompt').value = PROMPT_MASK;
+    $('sGuidance').value = '4';
   } else if(type === 'interior'){
     $('sExtControls').style.display = 'none';
     $('sIntControls').style.display = '';
     $('sPrompt').readOnly = true;
     hiddenPromptCache = buildInteriorPrompt();
     $('sPrompt').value = PROMPT_MASK;
+    // Interior was validated at 3.5, exterior at 4 — the two prompt sets differ
+    // enough that one guidance value does not suit both. Still editable after.
+    $('sGuidance').value = '3.5';
   } else {
     $('sExtControls').style.display = 'none';
     $('sIntControls').style.display = 'none';
@@ -405,11 +475,23 @@ function refreshExtPrompt(){
 ['sExtTime','sExtClouds','sExtWeather','sExtBackground','sExtView','sExtPeople','sExtPeopleDesc','sExtCars','sExtFocus','sExtExtra'].forEach(id=>{
   $(id).addEventListener('input', refreshExtPrompt);
 });
-['sIntRoom','sIntLighting','sIntFocus','sIntExtra'].forEach(id=>{
+// A close-up forces the shallow depth of field a real lens has at that distance,
+// so the Focus Mode picker has no effect there — grey it out instead of leaving
+// a control that silently does nothing.
+function updateIntFocusAvailability(){
+  const closeup = $('sIntShot').value === 'closeup';
+  const sel = $('sIntFocus');
+  sel.disabled = closeup;
+  const field = sel.closest('.field');
+  if(field) field.style.opacity = closeup ? '0.45' : '';
+}
+['sIntLight','sIntShot','sIntFocus','sIntExtra'].forEach(id=>{
   $(id).addEventListener('input', ()=>{
+    updateIntFocusAvailability();
     if($('sPromptType').value === 'interior') hiddenPromptCache = buildInteriorPrompt();
   });
 });
+try{ updateIntFocusAvailability(); }catch(e){ console.error('updateIntFocusAvailability init failed:', e); }
 try{ applyPromptType(); }catch(e){ console.error('applyPromptType init failed:', e); } // set initial value (Exterior by default)
 
 // ---------------------------------------------------------------------------
