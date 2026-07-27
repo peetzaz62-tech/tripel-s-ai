@@ -232,7 +232,7 @@ const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already 
 // blank white windows overshot into scene invention. Auto now preserves what
 // the source shows and only rules out the flat void; a view is drawn only when
 // the user picks one.
-const INT_VIEW_KEEP = ` Whatever is already visible beyond the glazing in the source stays what it is, brought up to photographic quality rather than replaced with a different scene. No landscape, skyline, garden or horizon is composed that the source does not already show. Where the source gives only blank white beyond the glass, it reads as bright open sky, nothing more.`;
+const INT_VIEW_KEEP = ` The source image is the authority on what lies outside. Whatever it already shows beyond the glazing — its own buildings, trees, planting, sky or backdrop — stays exactly that: the same elements in the same places at the same distance, changed only by being rendered photographically. Nothing is substituted for something more interesting and nothing is added around it: no extra building, tree, skyline, hill or horizon that the source does not already contain. Where the source shows nothing but blank white beyond the glass, that stays plain bright sky and no scene is composed to fill it.`;
 
 // A chosen view has to be phrased as a CONDITION, never as a fact. Written as a
 // statement — "beyond the glazing there is a city view" — the model treats it as
@@ -245,6 +245,10 @@ const INT_VIEW_GUARD = ` This governs only what is seen through openings that al
 // lighting mode). Splitting the two fixes a contradiction in the old fixed
 // sentence, which asked for a "bright and softly overexposed" view even at night.
 const INT_VIEW_CONTENT = {
+  // For sources modelled with no backdrop at all. Names sky explicitly so the
+  // blank window has something definite to be, without opening the door to
+  // invented scenery the way a named landscape does.
+  sky: `plain open sky with a soft natural gradient and gentle haze, carrying no building, tree, landscape or horizon detail of any kind`,
   garden: `a real garden, planting and shrubs with a tree or two near the glass and soft depth behind them`,
   forest: `real woodland close to the glass, trunks and layered foliage receding into soft depth`,
   street: `a real street at ground level, road surface and kerb, street trees and the fronts of the buildings opposite`,
