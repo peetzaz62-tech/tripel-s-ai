@@ -48,6 +48,11 @@ function extTimeParagraph(time){
   const map = {
     morning: `Time of Day — Morning: low sun near the horizon casting long soft-edged shadows, the light clear and only faintly warm rather than golden, with a cool tint in the shade and shadow detail kept visible. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
     noon: `Time of Day — Midday: bright clear daylight from a high sun, well-defined but soft-edged shadows that keep visible detail. The daylight is neutral and very slightly cool, exactly as a camera set to daylight white balance records it. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
+
+    // Afternoon is defined by the sun's ANGLE, not its colour. Said any other
+    // way the model reaches for golden hour, which is the cast this whole
+    // section exists to remove.
+    afternoon: `Time of Day — Afternoon: the sun has moved past its highest point but is still well up in the sky, throwing clearly directional shadows of moderate length rather than the long rakes of evening. The light stays bright and clear and its colour is the same neutral daylight as midday — this is afternoon by the angle of the sun, not by any warming of the light, so nothing in the frame turns golden. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
     // Golden hour is genuinely warm, so the amber stays — but confined to the
     // faces the sun actually reaches, with shade and whites held neutral.
     evening: `Time of Day — Evening: sun low on the horizon, long soft shadows, the light warmer than midday but still clean — a gentle amber on the surfaces it directly strikes, while shade stays cool and neutral and white surfaces never turn yellow. Building lights may glow softly. No harsh contrast or HDR grading.`,
