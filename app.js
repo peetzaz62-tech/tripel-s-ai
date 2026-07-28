@@ -174,6 +174,15 @@ const EXT_MATERIALS = [ENHANCE_NOT_CHANGE, CAMERA_ADDS].join('\n\n');
 
 const EXT_SITE = `Site elements — roads, paths, fences, poles, streetlights, planters, and everything else already visible in the image — stay exactly in place at correct scale and become photographically real. Grass reads as healthy natural green with realistic blade texture, never yellowed by warm grading; trees and shrubs get natural irregular foliage with no repeating patterns. The scene contains exactly what the source image contains: nothing new is introduced anywhere on the site.`;
 
+// Grass only, and deliberately no mention of trees. A first version described
+// foliage as richly as grass — leaves in layers, gaps letting light through,
+// varied silhouettes — and it pulled an overhanging branch into a frame that
+// had none. Adding a sentence forbidding that made it worse, because the
+// sentence had to name trees to forbid them. Dropping every mention of them
+// fixed it: a lawn cannot overhang the frame, and the detail gain was in the
+// grass all along.
+const EXT_GRASS = `Grass is photographed rather than stamped in: it resolves into individual blades of varied length and direction with natural clumping and slight colour variation, catching a soft sheen where the light crosses it, and thinning where it meets paving instead of stopping at a hard edge. It stays healthy and well kept, and covers exactly the area the source image gives it.`;
+
 const EXT_QUALITY = `Color & Photographic Quality: neutral accurate white balance — whites and greens stay true, with warmth only in direct highlights. A natural documentary architectural photograph: subtle sensor grain, believable reflections and contact shadows, gentle atmospheric depth. No HDR look, oversaturation, or artificial sharpening.`;
 
 function extTimeParagraph(time){
@@ -266,6 +275,7 @@ function buildExteriorPromptP(p = {}){
     extViewParagraph(view),
     EXT_MATERIALS,
     EXT_SITE,
+    EXT_GRASS,
     extBackgroundParagraph(background),
     extTimeParagraph(time),
     extCloudsParagraph(clouds, time),
@@ -303,6 +313,7 @@ function buildSemiOutdoorPromptP(p = {}){
     extViewParagraph(view),
     EXT_MATERIALS,
     EXT_SITE,
+    EXT_GRASS,
     extBackgroundParagraph(background),
     extTimeParagraph(time),
     extCloudsParagraph(clouds, time),
