@@ -3,6 +3,24 @@
 // and "do not change X" phrasing pulls attention toward changing X; this version
 // uses compact, mostly positive phrasing with the critical locks first and last.
 
+// ---------------------------------------------------------------------------
+// Shared by Interior and Exterior. Both tracks arrived at this independently by
+// A/B on 2026-07-27, so it lives in one place rather than being copied twice.
+//
+// The rule these encode: never name a material. Not to describe one, and not to
+// forbid one. An enumeration ("concrete shows formwork lines; brick and stone
+// show real joints") reads as a menu — on a flat white painted wall the
+// exterior version produced board-marked stained concrete, and a neighbouring
+// painted boundary wall came back as stone blocks. With these two paragraphs in
+// its place, the same seed left both smooth and painted.
+//
+// "never by what would look better" is the clause doing most of the work. The
+// failure was never that the model misread the source; it was that it improved
+// on it.
+const ENHANCE_NOT_CHANGE = `Enhance what is already in the image rather than changing it. Every surface keeps the material, colour, tone and pattern it already has; nothing is reinterpreted as a different material and nothing is restyled. What each surface is made of is decided entirely by the source image, never by what would look better. Dark surfaces stay dark and pale surfaces stay pale, and making the photograph brighter never makes a material lighter.`;
+
+const CAMERA_ADDS = `Add only what a real camera adds: each surface gains the true micro-texture, sheen and reflectivity of the exact material it already is, light behaves physically with bounce and soft contact shadows, natural depth of field, subtle sensor grain, true-to-life colour, no HDR look.`;
+
 const EXT_INTRO = `Turn this architectural 3D render into a real photograph of the exact same building, shot from the exact same camera position with identical framing and perspective. Lighting, sky, and weather follow the "Time of Day", "Clouds", and "Weather" sections below, with every shadow consistent with that light source. The result is a straight photograph — nothing about it may look like CGI, a rendering, or an illustration.`;
 
 const EXT_GEOMETRY = `Preserve exactly, without exception:
@@ -11,7 +29,7 @@ const EXT_GEOMETRY = `Preserve exactly, without exception:
 - Ground plan: every ground surface keeps its exact category and boundary — paved roads, driveways, and paths stay paved; timber decks and terraces stay timber decking; grass and planting stay planted; pools and ponds stay water with realistic reflections. Nothing swaps category and nothing new is invented.
 Realism is added on top of these surfaces, never by changing what they are.`;
 
-const EXT_MATERIALS = `Materials keep their original colors and tones, upgraded to photographic realism: concrete shows formwork lines and subtle tonal variation; brick and stone show real joints and units; metal cladding shows its profile and correct sheen; glass is genuinely transparent with believable reflections and interior depth; wood shows natural grain; painted and rendered surfaces show faint real texture instead of flat digital color. Every material stays in its own family.`;
+const EXT_MATERIALS = [ENHANCE_NOT_CHANGE, CAMERA_ADDS].join('\n\n');
 
 const EXT_SITE = `Site elements — roads, paths, fences, poles, streetlights, planters, and everything else already visible in the image — stay exactly in place at correct scale and become photographically real. Grass reads as healthy natural green with realistic blade texture, never yellowed by warm grading; trees and shrubs get natural irregular foliage with no repeating patterns. The scene contains exactly what the source image contains: nothing new is introduced anywhere on the site.`;
 
@@ -190,18 +208,14 @@ const INT_CAMERA = `Convert this 3D interior render into a photorealistic photog
 // free to sprout grain. Naming both cases side by side is what finally held.
 // This is also why the old three-paragraph version is gone: length was not the
 // lever, the two-way comparison was.
-// Not one material is named anywhere in this core, deliberately. Naming them —
-// even to forbid them — is what was doing the damage. A previous version listed
-// the materials a plain surface must never become ("timber, stone, brick,
-// marble, tile") and it measurably made things worse: in a same-seed A/B on
-// 2026-07-27 it washed a terracotta tile wall to cream and lifted a near-black
-// ceiling and floor to mid-grey, while this version held all three.
-//
-// "never by what would look better" is doing most of the work. The failure was
-// never that the model misread the source; it was that it improved on it.
-const INT_FIDELITY = `Enhance what is already in the image rather than changing it. Every surface keeps the material, colour, tone and pattern it already has; nothing is reinterpreted as a different material and nothing is restyled. What each surface is made of is decided entirely by the source image, never by what would look better. Dark surfaces stay dark and pale surfaces stay pale, and making the photograph brighter never makes a material lighter.`;
-
-const INT_CAMERA_ADDS = `Add only what a real camera adds: each surface gains the true micro-texture, sheen and reflectivity of the exact material it already is, light behaves physically with bounce and soft contact shadows, natural depth of field, subtle sensor grain, true-to-life colour, no HDR look.`;
+// Shared with Exterior — see ENHANCE_NOT_CHANGE at the top of this file for why
+// no material is named. The interior A/B that chose it: a previous version
+// listed the materials a plain surface must never become ("timber, stone,
+// brick, marble, tile") and it measurably made things worse, washing a
+// terracotta tile wall to cream and lifting a near-black ceiling and floor to
+// mid-grey, while this version held all three.
+const INT_FIDELITY = ENHANCE_NOT_CHANGE;
+const INT_CAMERA_ADDS = CAMERA_ADDS;
 
 const INT_LIGHT_PHYSICS = `Light behaves physically: it bounces between surfaces picking up their colour, falls off with distance, wraps softly around edges, and settles into gentle ambient occlusion where surfaces meet.`;
 
