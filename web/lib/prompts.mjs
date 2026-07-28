@@ -44,6 +44,23 @@ const EXT_QUALITY = `Color & Photographic Quality: neutral accurate white balanc
 // only that it exists.
 const NEUTRAL_WB = ` The white balance is neutral and the light is clean: white and grey surfaces read as white and grey with no golden or amber cast, and the sun's warmth shows only as a slight lift on the brightest sunlit faces, never as a colour wash over the whole frame.`;
 
+// Under a closed sky the time of day still sets the brightness and the colour,
+// but it must stop describing direct sun. Rain used to render under a blue sky
+// with the sun out, and overcast still threw a hard building shadow across the
+// road, because Time of Day, Clouds and Weather each described the light with
+// no order of precedence between them. These variants take that precedence.
+// Night is absent on purpose: it is lit by the building, not the sun, so it
+// needs no diffuse form.
+function extDiffuseTimeParagraph(time){
+  const map = {
+    morning: `Time of Day — Morning under a closed sky: early daylight with the sun hidden behind cloud, arriving evenly from the whole sky. There is no direct sun anywhere in the scene — nothing casts a shadow onto the ground or across a wall, and the only shading is the gentle ambient occlusion where surfaces meet. Low contrast, cool and clear.`,
+    noon: `Time of Day — Midday under a closed sky: bright but completely diffused daylight with the sun hidden behind cloud, arriving evenly from the whole sky. There is no direct sun anywhere in the scene — nothing casts a shadow onto the ground or across a wall, and the only shading is the gentle ambient occlusion where surfaces meet. Low contrast and evenly lit.`,
+    afternoon: `Time of Day — Afternoon under a closed sky: full daylight with the sun hidden behind cloud, arriving evenly from the whole sky. There is no direct sun anywhere in the scene — nothing casts a shadow onto the ground or across a wall, and the only shading is the gentle ambient occlusion where surfaces meet. Low contrast and evenly lit.`,
+    evening: `Time of Day — Evening under a closed sky: the last of the daylight with the sun already lost behind cloud, dimmer and cooler than midday and flat across the whole scene. There is no direct sun and nothing casts a shadow; building lights may glow softly. Nothing turns golden.`
+  };
+  return (map[time] || map.noon) + NEUTRAL_WB;
+}
+
 function extTimeParagraph(time){
   const map = {
     morning: `Time of Day — Morning: low sun near the horizon casting long soft-edged shadows, the light clear and only faintly warm rather than golden, with a cool tint in the shade and shadow detail kept visible. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
@@ -75,13 +92,20 @@ function extCloudsParagraph(clouds, time){
       : `Clouds: scattered cumulus clouds with real volume, soft-lit tops and gently shaded undersides — never a flat repeated pattern.`,
     overcast: night
       ? `Clouds: heavy overcast hiding moon and stars, faint ambient glow only.`
-      : `Clouds: a soft uniform overcast layer diffusing the light evenly.`
+      : `Clouds: a soft uniform overcast layer diffusing the light evenly.`,
+
+    // Rain gets its own sky rather than borrowing "overcast", which is a bright
+    // even white layer — too light to read as weather you would take an
+    // umbrella for.
+    rain: night
+      ? `Clouds: a heavy rain sky with moon and stars completely hidden, only the dim glow of distant city light on the cloud base.`
+      : `Clouds: a heavy, low, rain-bearing sky — thick grey cloud with real depth and darker bellies, covering the frame from edge to edge with no break and no patch of blue anywhere. The daylight coming through it is dim and even.`
   };
   return map[clouds] || map.thin;
 }
 
 function extWeatherParagraph(weather){
-  if(weather === 'rain') return `Weather — Rain: soft diffused directionless light, wet sheen and reflections on paved and hard surfaces, fine rain streaks and light ground mist, cool slightly desaturated tones.`;
+  if(weather === 'rain') return `Weather — Rain: the whole scene sits under a dim, gloomy, heavily overcast light with no sunshine anywhere in it. Wet sheen and standing reflections on paved and hard surfaces, fine rain streaks through the air and light ground mist, cool and slightly desaturated throughout.`;
   if(weather === 'snow') return `Weather — Snow: a light natural layer of snow on existing horizontal surfaces only, soft diffused light, low contrast, pale cool grading. Geometry unchanged.`;
   return ''; // clear
 }
@@ -109,6 +133,12 @@ function extViewParagraph(view){
   return ''; // eye-level — camera already locked
 }
 
+// Known limitation, not a bug to keep chasing in prose: on a source that
+// already contains parked cars, switching this on adds more of them. A
+// conditional rewrite ("only where the source contains no vehicle at all")
+// was tested on 2026-07-29 and did not help — mentioning vehicles is what
+// produces vehicles. The dropdown label carries the warning instead, and the
+// wording here stays short.
 function extCarsParagraph(cars){
   if(cars === 'yes') return `Vehicles: one or two realistic vehicles in plausible spots (driveway, street, or parking area), correctly scaled and lit, secondary to the building.`;
   return ''; // Off: emit nothing — see extPeopleParagraph
@@ -135,6 +165,8 @@ export function buildExteriorPrompt(p = {}){
   const focus = p.focus || 'deep';
   const extra = String(p.extra || '').trim();
 
+  const closedSky = weather === 'rain' || clouds === 'overcast';
+
   const parts = [
     EXT_INTRO,
     EXT_GEOMETRY,
@@ -142,8 +174,12 @@ export function buildExteriorPrompt(p = {}){
     EXT_MATERIALS,
     EXT_SITE,
     extBackgroundParagraph(background),
-    extTimeParagraph(time),
-    extCloudsParagraph(clouds, time),
+    // Rain implies a closed sky, and so does the overcast cloud option; under
+    // either, the sun paragraph gives way to its diffuse form. Rain also
+    // forces the cloud layer, so "clear cloudless sky" can never be asked for
+    // in the same breath as falling rain.
+    (closedSky && time !== 'night') ? extDiffuseTimeParagraph(time) : extTimeParagraph(time),
+    extCloudsParagraph(weather === 'rain' ? 'rain' : clouds, time),
     extWeatherParagraph(weather),
     extPeopleParagraph(people, peopleDesc),
     extCarsParagraph(cars),
@@ -172,6 +208,8 @@ export function buildSemiOutdoorPrompt(p = {}){
   const focus = p.focus || 'deep';
   const extra = String(p.extra || '').trim();
 
+  const closedSky = weather === 'rain' || clouds === 'overcast';
+
   const parts = [
     SEMI_INTRO,
     EXT_GEOMETRY,
@@ -179,8 +217,12 @@ export function buildSemiOutdoorPrompt(p = {}){
     EXT_MATERIALS,
     EXT_SITE,
     extBackgroundParagraph(background),
-    extTimeParagraph(time),
-    extCloudsParagraph(clouds, time),
+    // Rain implies a closed sky, and so does the overcast cloud option; under
+    // either, the sun paragraph gives way to its diffuse form. Rain also
+    // forces the cloud layer, so "clear cloudless sky" can never be asked for
+    // in the same breath as falling rain.
+    (closedSky && time !== 'night') ? extDiffuseTimeParagraph(time) : extTimeParagraph(time),
+    extCloudsParagraph(weather === 'rain' ? 'rain' : clouds, time),
     extWeatherParagraph(weather),
     extPeopleParagraph(people, peopleDesc),
     extCarsParagraph(cars),
