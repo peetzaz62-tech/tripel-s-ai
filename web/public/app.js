@@ -141,6 +141,22 @@ $('sPromptType').addEventListener('change', applyPromptType);
 // Add People builds its prompt server-side too, so the read-only box in that
 // card shows the same notice rather than an empty field the user might type in.
 $('apPrompt').value = '🔒 Prompt generated and ready to use — hidden to protect this preset.';
+
+// The people ceiling depends on the pose — four at rest, two moving, and "both"
+// needs at least two to be both. Kept in step with AP_COUNT_RANGE in
+// lib/prompts.mjs, which clamps server-side regardless of what arrives here.
+const AP_COUNT_RANGE = { still:[1,4], moving:[1,2], both:[2,4] };
+function syncPeopleCount(){
+  const [lo, hi] = AP_COUNT_RANGE[$('apPose').value] || AP_COUNT_RANGE.still;
+  const slider = $('apCount');
+  slider.min = lo; slider.max = hi;
+  slider.value = Math.min(Math.max(parseInt(slider.value) || lo, lo), hi);
+  $('apCountVal').textContent = slider.value;
+  $('apCountLo').textContent = lo;
+  $('apCountHi').textContent = hi;
+}
+['apPose','apCount'].forEach(id=>$(id).addEventListener('input', syncPeopleCount));
+syncPeopleCount();
 function refreshExtPrompt(){
   updatePeopleDescVisibility();
   const type = $('sPromptType').value;
@@ -355,7 +371,7 @@ async function runWorkflow(){
   }else if(state.workflow === 'people'){
     params = {
       workflow:'people',
-      pose: $('apPose').value, desc: $('apDesc').value,
+      pose: $('apPose').value, count: parseInt($('apCount').value), desc: $('apDesc').value,
       turbo: $('apTurbo').value === 'true',
       guidance: parseFloat($('apGuidance').value),
       megapixels: parseFloat($('apMegapixels').value),
