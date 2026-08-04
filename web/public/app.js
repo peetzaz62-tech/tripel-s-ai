@@ -147,19 +147,21 @@ function refreshExtPrompt(){
 ['sExtTime','sExtClouds','sExtWeather','sExtBackground','sExtView','sExtPeople','sExtPeopleDesc','sExtCars','sExtFocus','sExtExtra'].forEach(id=>{
   $(id).addEventListener('input', refreshExtPrompt);
 });
-// Close-up overrides two of the pickers: a real lens this close is forced into
-// shallow depth of field, and the frame usually holds no glazing for a view to
-// sit behind. Grey them out rather than leave controls that silently do nothing.
+// Close-up overrides three of the pickers: a real lens this close is forced
+// into shallow depth of field, the frame usually holds no glazing for a view to
+// sit behind, and a detail shot has no room for a figure — the close-up core
+// already declares the objects in frame to be the subject. Grey them out rather
+// than leave controls that silently do nothing.
 function updateIntFocusAvailability(){
   const closeup = $('sIntShot').value === 'closeup';
-  ['sIntFocus','sIntBg'].forEach(id=>{
+  ['sIntFocus','sIntBg','sIntPeople'].forEach(id=>{
     const sel = $(id);
     sel.disabled = closeup;
     const field = sel.closest('.field');
     if(field) field.style.opacity = closeup ? '0.45' : '';
   });
 }
-['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntFocus','sIntExtra'].forEach(id=>{
+['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntFocus','sIntPeople','sIntExtra'].forEach(id=>{
   $(id).addEventListener('input', ()=>{
     updateIntFocusAvailability();
     if($('sPromptType').value === 'interior') hiddenPromptCache = ''; // prompt is now built server-side
@@ -336,7 +338,8 @@ async function runWorkflow(){
       cars: $('sExtCars').value, focus: $('sExtFocus').value, extra: $('sExtExtra').value,
       intLight: $('sIntLight').value, intShot: $('sIntShot').value,
       intFixtures: $('sIntFixtures').value, intBg: $('sIntBg').value,
-      intFocus: $('sIntFocus').value, intExtra: $('sIntExtra').value,
+      intFocus: $('sIntFocus').value, intPeople: $('sIntPeople').value,
+      intExtra: $('sIntExtra').value,
       turbo: $('sTurbo').value === 'true',
       guidance: parseFloat($('sGuidance').value),
       megapixels: parseFloat($('sMegapixels').value),

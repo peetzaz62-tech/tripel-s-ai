@@ -539,19 +539,44 @@ function intFocusParagraph(focus, closeup){
   return `Focus: deep depth of field, the whole room sharp from front to back. The result is a straight photograph, not a rendering.`;
 }
 
+// Interior people. Same-seed test on the café source, 2026-08-05:
+//
+// - Seated works because the pose is conditioned on the seating the room
+//   already has. Without that clause a request to seat someone in a room with
+//   nothing to sit on is an invitation to invent furniture.
+// - Walking asks for exactly ONE figure, and the count is the whole trick. The
+//   first version said "one or two" and produced four; with four smeared bodies
+//   crossing a small room the blur ran onto the bench, the wall and the table
+//   behind them. One walker leaves everything fixed perfectly sharp.
+// - Suppressed entirely on a close-up, where the core already says the objects
+//   in frame are the subject. The control hides itself in that mode too.
+function intPeopleParagraph(people, closeup){
+  if(closeup) return '';
+  if(people === 'sit') return `People: one or two people seated, using the seating the room already contains and leaving its layout, position and count untouched — relaxed and unposed, correctly scaled to the space, lit by the light already in the room, photographically real, secondary to the interior.`;
+  if(people === 'walk') return `People: one person walking through the room, caught mid-stride during a long exposure so that figure alone is smeared into a soft translucent streak in the direction they are moving, while everything fixed in the room stays perfectly sharp — correctly scaled to the space, lit by the light already in the room, secondary to the interior.`;
+  if(people === 'both') return `People: someone seated using the seating the room already contains, its layout, position and count left untouched, and one person walking through the room caught mid-stride during a long exposure so that figure alone is smeared into a soft translucent streak while everything fixed in the room stays perfectly sharp — all correctly scaled to the space, lit by the light already in the room, secondary to the interior.`;
+  return ''; // Off: emit nothing — see extPeopleParagraph for why
+}
+
 function buildInteriorPromptP(p = {}){
   const mode = p.intLight || 'white';
   const fixtures = p.intFixtures || 'on';
   const bg = p.intBg || 'auto';
   const closeup = (p.intShot || 'room') === 'closeup';
   const focus = p.intFocus || 'deep';
+  const people = p.intPeople || 'no';
   const extra = String(p.intExtra || '').trim();
 
   const core = closeup
     ? [INT_CAMERA_CLOSEUP, INT_FIDELITY, INT_CLOSEUP_DETAIL, INT_LIGHT_PHYSICS, INT_PHOTO_QUALITY].join('\n\n')
     : INT_CORE;
 
-  const parts = [core, intLightingParagraph(mode, fixtures, bg, closeup), intFocusParagraph(focus, closeup)];
+  const parts = [
+    core,
+    intLightingParagraph(mode, fixtures, bg, closeup),
+    intPeopleParagraph(people, closeup),
+    intFocusParagraph(focus, closeup)
+  ].filter(Boolean);
   if(extra) parts.push(`Additional Instructions:\n${extra}`);
   // Room mode deliberately has no trailing "final check" paragraph: the version
   // that carried one is the version that lost the wardrobe, and the run that
@@ -576,7 +601,8 @@ function buildInteriorPrompt(){
   return buildInteriorPromptP({
     intLight: $('sIntLight').value, intShot: $('sIntShot').value,
     intFixtures: $('sIntFixtures').value, intBg: $('sIntBg').value,
-    intFocus: $('sIntFocus').value, intExtra: $('sIntExtra').value
+    intFocus: $('sIntFocus').value, intPeople: $('sIntPeople').value,
+    intExtra: $('sIntExtra').value
   });
 }
 
@@ -631,19 +657,21 @@ function refreshExtPrompt(){
 ['sExtTime','sExtClouds','sExtWeather','sExtBackground','sExtView','sExtPeople','sExtPeopleDesc','sExtCars','sExtFocus','sExtExtra'].forEach(id=>{
   $(id).addEventListener('input', refreshExtPrompt);
 });
-// Close-up overrides two of the pickers: a real lens this close is forced into
-// shallow depth of field, and the frame usually holds no glazing for a view to
-// sit behind. Grey them out rather than leave controls that silently do nothing.
+// Close-up overrides three of the pickers: a real lens this close is forced
+// into shallow depth of field, the frame usually holds no glazing for a view to
+// sit behind, and a detail shot has no room for a figure — the close-up core
+// already declares the objects in frame to be the subject. Grey them out rather
+// than leave controls that silently do nothing.
 function updateIntFocusAvailability(){
   const closeup = $('sIntShot').value === 'closeup';
-  ['sIntFocus','sIntBg'].forEach(id=>{
+  ['sIntFocus','sIntBg','sIntPeople'].forEach(id=>{
     const sel = $(id);
     sel.disabled = closeup;
     const field = sel.closest('.field');
     if(field) field.style.opacity = closeup ? '0.45' : '';
   });
 }
-['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntFocus','sIntExtra'].forEach(id=>{
+['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntFocus','sIntPeople','sIntExtra'].forEach(id=>{
   $(id).addEventListener('input', ()=>{
     updateIntFocusAvailability();
     if($('sPromptType').value === 'interior') hiddenPromptCache = buildInteriorPrompt();
