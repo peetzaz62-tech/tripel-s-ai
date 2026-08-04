@@ -104,7 +104,7 @@ $('btnLogout').addEventListener('click', async ()=>{
 
 
 function updatePeopleDescVisibility(){
-  $('sExtPeopleDescWrap').style.display = $('sExtPeople').value === 'yes' ? '' : 'none';
+  $('sExtPeopleDescWrap').style.display = $('sExtPeople').value !== 'no' ? '' : 'none';
 }
 
 let hiddenPromptCache = '';

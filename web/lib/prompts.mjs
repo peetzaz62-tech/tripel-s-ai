@@ -121,6 +121,17 @@ function extPeopleParagraph(people, desc){
     if(desc) return `People: include ${desc} — correctly scaled to the architecture, lit consistently with the scene, photographically real, secondary to the building.`;
     return `People: one or two people naturally present — walking or standing, correctly scaled, lit consistently with the scene, photographically real, secondary to the building.`;
   }
+  // Motion-blurred figures, the long-exposure convention in architectural
+  // photography. Tested same-seed against the sharp option on 2026-08-05: the
+  // smear lands and the building stays sharp. Note "standing" is deliberately
+  // absent — a still figure cannot smear, and leaving the word in is what kept
+  // the sharp option sharp. The Focus paragraph further down still ends "no
+  // blur or bokeh anywhere"; a variant that exempted movement from that
+  // sentence rendered indistinguishably, so it was not shipped.
+  if(people === 'blur'){
+    if(desc) return `People: include ${desc}, moving through the scene and caught mid-stride during a long exposure so each figure is smeared into a soft translucent streak in the direction they are moving, the building behind them staying perfectly sharp — correctly scaled, lit consistently with the scene, secondary to the building.`;
+    return `People: one or two people walking through the scene, caught mid-stride during a long exposure so each figure is smeared into a soft translucent streak in the direction they are moving, the building behind them staying perfectly sharp — correctly scaled, lit consistently with the scene, secondary to the building.`;
+  }
   // Off: emit nothing at all. Image models respond to the concept named in the
   // prompt and largely ignore the negation around it, so "no people" reliably
   // summons people. Silence + the global "nothing new is introduced" lock works.
