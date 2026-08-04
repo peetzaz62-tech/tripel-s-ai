@@ -31,7 +31,19 @@ Realism is added on top of these surfaces, never by changing what they are.`;
 
 const EXT_MATERIALS = [ENHANCE_NOT_CHANGE, CAMERA_ADDS].join('\n\n');
 
-const EXT_SITE = `Site elements — roads, paths, fences, poles, streetlights, planters, and everything else already visible in the image — stay exactly in place at correct scale and become photographically real. Grass reads as healthy natural green with realistic blade texture, never yellowed by warm grading; trees and shrubs get natural irregular foliage with no repeating patterns. The scene contains exactly what the source image contains: nothing new is introduced anywhere on the site.`;
+// This paragraph used to carry a sentence describing how grass and foliage
+// should look. It was there to stop warm grading yellowing a lawn — but naming
+// grass grows grass, and on 2026-08-05 it was measured turning the road across
+// the foreground into a verge. Same seed, four ways:
+//   remove the sentence, car moving      → road runs to the frame edge
+//   remove the sentence, cars parked     → road runs to the frame edge
+//   keep it, add "paved surfaces run to their full extent" → still a verge
+//   remove the sentence at morning / evening / night → road intact, and the
+//     lawn that genuinely belongs stays green under warm light and at night
+// The third line is the one that settles it: no added instruction overrides the
+// naming, only deletion does. Yellowing is already covered by NEUTRAL_WB and by
+// EXT_QUALITY, which asks for greens to read as true green with no warm cast.
+const EXT_SITE = `Site elements — roads, paths, fences, poles, streetlights, planters, and everything else already visible in the image — stay exactly in place at correct scale and become photographically real. The scene contains exactly what the source image contains: nothing new is introduced anywhere on the site.`;
 
 // "warmth only in direct highlights" was permission, not a limit, and renders
 // came back with an amber cast over the whole frame. This states the target as
