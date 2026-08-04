@@ -4,12 +4,13 @@ import {
   buildExteriorPrompt,
   buildSemiOutdoorPrompt,
   buildInteriorPrompt,
+  buildAddPeoplePrompt,
 } from '../../../lib/prompts.mjs';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const CREDIT_COST = { magnific: 1, sss: 1 };
+const CREDIT_COST = { magnific: 1, sss: 1, people: 1 };
 const MAX_INPUT_BYTES = 25 * 1024 * 1024;
 
 export async function POST(req) {
@@ -21,7 +22,7 @@ export async function POST(req) {
     const body = await req.json();
     const params = body?.params || {};
     const inputPath = String(body?.inputPath || '');
-    const wf = params.workflow === 'sss' ? 'sss' : 'magnific';
+    const wf = ['sss', 'people'].includes(params.workflow) ? params.workflow : 'magnific';
     const cost = CREDIT_COST[wf];
 
     // the client uploads the input image straight to Supabase Storage
@@ -62,6 +63,16 @@ export async function POST(req) {
         prompt,
         turbo: !!params.turbo,
         guidance: num(params.guidance, 4),
+        megapixels: Math.min(Math.max(num(params.megapixels, 2), 0.5), 8),
+        seed: int(params.seed, Math.floor(Math.random() * 1e9)),
+      });
+    } else if (wf === 'people') {
+      // Same graph as sss — the mode is a different prompt, not a different
+      // pipeline. Guidance defaults lower here because the prompt is short.
+      graph = buildSSSGraph({
+        prompt: buildAddPeoplePrompt(params),
+        turbo: !!params.turbo,
+        guidance: num(params.guidance, 3.5),
         megapixels: Math.min(Math.max(num(params.megapixels, 2), 0.5), 8),
         seed: int(params.seed, Math.floor(Math.random() * 1e9)),
       });

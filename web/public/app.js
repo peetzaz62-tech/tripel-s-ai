@@ -138,6 +138,9 @@ function applyPromptType(){
   }
 }
 $('sPromptType').addEventListener('change', applyPromptType);
+// Add People builds its prompt server-side too, so the read-only box in that
+// card shows the same notice rather than an empty field the user might type in.
+$('apPrompt').value = '🔒 Prompt generated and ready to use — hidden to protect this preset.';
 function refreshExtPrompt(){
   updatePeopleDescVisibility();
   const type = $('sPromptType').value;
@@ -275,6 +278,7 @@ document.querySelectorAll('.wf-opt').forEach(el=>{
     state.workflow = el.dataset.wf;
     $('paramsCardMagnific').style.display = state.workflow === 'magnific' ? '' : 'none';
     $('paramsCardSSS').style.display = state.workflow === 'sss' ? '' : 'none';
+    $('paramsCardPeople').style.display = state.workflow === 'people' ? '' : 'none';
   });
 });
 
@@ -315,6 +319,9 @@ $('btnRandSeedMagnific').addEventListener('click', ()=>{
 $('btnRandSeedSSS').addEventListener('click', ()=>{
   $('sSeed').value = Math.floor(Math.random()*1_000_000_000);
 });
+$('btnRandSeedPeople').addEventListener('click', ()=>{
+  $('apSeed').value = Math.floor(Math.random()*1_000_000_000);
+});
 
 btnRun.addEventListener('click', runWorkflow);
 
@@ -344,6 +351,15 @@ async function runWorkflow(){
       guidance: parseFloat($('sGuidance').value),
       megapixels: parseFloat($('sMegapixels').value),
       seed: parseInt($('sSeed').value)
+    };
+  }else if(state.workflow === 'people'){
+    params = {
+      workflow:'people',
+      pose: $('apPose').value, desc: $('apDesc').value,
+      turbo: $('apTurbo').value === 'true',
+      guidance: parseFloat($('apGuidance').value),
+      megapixels: parseFloat($('apMegapixels').value),
+      seed: parseInt($('apSeed').value)
     };
   }else{
     params = {

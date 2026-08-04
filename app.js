@@ -586,6 +586,49 @@ function buildInteriorPromptP(p = {}){
   return parts.join('\n\n');
 }
 
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Add People — a different job from the other three modes. Its input is a
+// photograph that is already finished, so this prompt must NOT carry the
+// enhance/material/lighting paragraphs: those exist to reinterpret a raw
+// SketchUp render, and on an image the customer has already approved,
+// reinterpreting it is precisely the damage to avoid.
+//
+// The pipeline is unchanged — same full pass from an empty latent. Measured
+// 2026-08-05: running a finished render back through it adds people and leaves
+// the room intact, while starting the sampler from that render as its latent
+// adds nobody at any denoise from 0.25 through 0.80. There is no denoise window
+// to find, so the short prompt is the entire mechanism.
+//
+// One wording serves both interior and exterior, which is why the mode needs no
+// scene selector: "seated if the picture already contains seating, otherwise
+// standing" makes the model read the scene instead of being told what it is —
+// the same conditional form that stopped window views from cutting new holes in
+// walls.
+const AP_BASE = `This is a finished photograph. Leave it exactly as it is — the same place, the same objects in the same positions, the same materials, the same colours, the same lighting and the same camera. Nothing already in the frame is moved, replaced, restyled or removed. The only change is that people are now present in it.`;
+
+const AP_STILL = `People: one or two people at rest — seated if the picture already contains seating, otherwise standing — sharp and still, correctly scaled to the space, lit by the light already in the picture, secondary to the place itself. Whatever they rest on is something the picture already contains, and its position and count are left untouched.`;
+
+const AP_MOVING = `People: one person walking through the picture, caught mid-stride during a long exposure so that figure alone is smeared into a soft translucent streak in the direction they are moving, while everything else in the frame stays perfectly sharp — correctly scaled to the space, lit by the light already in the picture, secondary to the place itself.`;
+
+// The still figure is told outright that it stays sharp. An earlier version let
+// both figures share one sentence with the long-exposure clause in it and the
+// seated person came back soft.
+const AP_BOTH = `People: one person at rest — seated if the picture already contains seating, otherwise standing — and one person walking through the picture. The still figure is rendered as sharp as everything around them. Only the walking figure is caught mid-stride during a long exposure and smeared into a soft translucent streak in the direction they are moving; everything else in the frame stays perfectly sharp. Both are correctly scaled to the space, lit by the light already in the picture, and secondary to the place itself. Whatever the still figure rests on is something the picture already contains, and its position and count are left untouched.`;
+
+const AP_POSE = { still: AP_STILL, moving: AP_MOVING, both: AP_BOTH };
+
+function buildAddPeoplePromptP(p = {}){
+  const pose = AP_POSE[p.pose] ? p.pose : 'still';
+  const desc = String(p.desc || '').trim();
+
+  const parts = [AP_BASE, AP_POSE[pose]];
+  // Free text is appended rather than spliced into the paragraph above, so the
+  // wording that was actually rendered stays byte-for-byte intact.
+  if(desc) parts.push(`Additional Instructions:\n${desc}`);
+  return parts.join('\n\n');
+}
+
 // DOM adapters — read the UI controls and delegate to the shared builders above
 function readExtParams(){
   return {
@@ -789,8 +832,15 @@ document.querySelectorAll('.wf-opt').forEach(el=>{
     state.workflow = el.dataset.wf;
     $('paramsCardMagnific').style.display = state.workflow === 'magnific' ? '' : 'none';
     $('paramsCardSSS').style.display = state.workflow === 'sss' ? '' : 'none';
+    $('paramsCardPeople').style.display = state.workflow === 'people' ? '' : 'none';
   });
 });
+
+function refreshPeoplePrompt(){
+  $('apPrompt').value = buildAddPeoplePromptP({ pose: $('apPose').value, desc: $('apDesc').value });
+}
+['apPose','apDesc'].forEach(id=>$(id).addEventListener('input', refreshPeoplePrompt));
+refreshPeoplePrompt();
 
 // upload handling
 const dropZone = $('dropZone'), fileInput = $('fileInput');
@@ -841,6 +891,9 @@ $('btnRandSeedMagnific').addEventListener('click', ()=>{
 $('btnRandSeedSSS').addEventListener('click', ()=>{
   $('sSeed').value = Math.floor(Math.random()*1_000_000_000);
 });
+$('btnRandSeedPeople').addEventListener('click', ()=>{
+  $('apSeed').value = Math.floor(Math.random()*1_000_000_000);
+});
 
 btnRun.addEventListener('click', runWorkflow);
 
@@ -861,6 +914,19 @@ async function runWorkflow(){
       seed: parseInt($('sSeed').value)
     };
     prompt = buildSSSPrompt(opts);
+    saveImageNodeId = SAVE_IMAGE_NODE_ID_SSS;
+  }else if(state.workflow === 'people'){
+    // Same graph as Sketchup-to-Render. The mode differs only in the text it
+    // sends: see buildAddPeoplePromptP for why a shorter prompt is the whole
+    // mechanism and no img2img pass is involved.
+    prompt = buildSSSPrompt({
+      imageName: state.uploadedName,
+      prompt: buildAddPeoplePromptP({ pose: $('apPose').value, desc: $('apDesc').value }),
+      turbo: $('apTurbo').value === 'true',
+      guidance: parseFloat($('apGuidance').value),
+      megapixels: parseFloat($('apMegapixels').value),
+      seed: parseInt($('apSeed').value)
+    });
     saveImageNodeId = SAVE_IMAGE_NODE_ID_SSS;
   }else{
     const opts = {

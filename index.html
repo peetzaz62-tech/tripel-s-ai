@@ -166,6 +166,15 @@
               <div class="desc">Turns a SketchUp model image into a realistic architectural photograph. Turbo (fast) / Quality (sharper) modes available.</div>
             </div>
           </div>
+          <div class="wf-opt" data-wf="people">
+            <div class="wf-icon">
+              <svg viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6" r="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 17.5V15.2C2.8 13.4 4.7 12.2 7 12.2C9.3 12.2 11.2 13.4 11.2 15.2V17.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="14.6" cy="6.6" r="1.8" stroke="currentColor" stroke-width="1.1" stroke-dasharray="1.6 1.5"/><path d="M11.9 17.5V15.6C11.9 14.2 13.1 13.2 14.6 13.2C16.2 13.2 17.4 14.2 17.4 15.6V17.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-dasharray="1.6 1.5"/></svg>
+            </div>
+            <div>
+              <div class="name">SSS Add People <span class="badge">Ready</span></div>
+              <div class="desc">Adds people to a render that is already finished. The picture itself is left untouched — same materials, lighting and camera.</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -247,64 +256,78 @@
               </select>
             </label>
           </div>
-          <div class="row2">
-            <label class="field">
-              <span>Weather</span>
-              <select id="sExtWeather">
-                <option value="clear" selected>Clear</option>
-                <option value="rain">Rain</option>
-                <option value="snow">Snow</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Background</span>
-              <select id="sExtBackground">
-                <option value="trees" selected>Trees</option>
-                <option value="low">Low-rise</option>
-                <option value="high">High-rise</option>
-              </select>
-            </label>
-          </div>
-          <label class="field">
-            <span>View Type</span>
-            <select id="sExtView">
-              <option value="normal" selected>Eye-Level (default, keep original camera)</option>
-              <option value="bird">Bird's Eye View</option>
-              <option value="isometric">Isometric</option>
-            </select>
-          </label>
-          <div class="row2">
-            <label class="field">
-              <span>People</span>
-              <select id="sExtPeople">
-                <option value="no" selected>None</option>
-                <option value="yes">Include — คนชัด</option>
-                <option value="blur">Include — คนเบลอ (long exposure)</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Vehicles</span>
-              <select id="sExtCars">
-                <option value="no" selected>None</option>
-                <option value="yes">Include — ใช้กับภาพที่ไม่มีรถเท่านั้น</option>
-              </select>
-            </label>
-          </div>
-          <label class="field" id="sExtPeopleDescWrap" style="display:none;">
-            <span>Describe the people (optional)</span>
-            <input type="text" id="sExtPeopleDesc" placeholder="e.g. a couple walking a dog, two children playing">
-          </label>
-          <label class="field">
-            <span>Focus Mode</span>
-            <select id="sExtFocus">
-              <option value="deep" selected>Deep Focus (sharp throughout)</option>
-              <option value="shallow">Shallow DOF (blurred background, building emphasis)</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Additional notes (optional)</span>
-            <textarea id="sExtExtra" placeholder="e.g. filmic color grade, low camera angle..." style="min-height:50px;"></textarea>
-          </label>
+
+          <details class="optgroup">
+            <summary>Scene &amp; weather<span class="og-sign"></span></summary>
+            <div class="og-body">
+              <div class="row2">
+                <label class="field">
+                  <span>Weather</span>
+                  <select id="sExtWeather">
+                    <option value="clear" selected>Clear</option>
+                    <option value="rain">Rain</option>
+                    <option value="snow">Snow</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Background</span>
+                  <select id="sExtBackground">
+                    <option value="trees" selected>Trees</option>
+                    <option value="low">Low-rise</option>
+                    <option value="high">High-rise</option>
+                  </select>
+                </label>
+              </div>
+              <div class="row2">
+                <label class="field">
+                  <span>View Type</span>
+                  <select id="sExtView">
+                    <option value="normal" selected>Eye-Level (keep camera)</option>
+                    <option value="bird">Bird's Eye View</option>
+                    <option value="isometric">Isometric</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Focus Mode</span>
+                  <select id="sExtFocus">
+                    <option value="deep" selected>Deep Focus</option>
+                    <option value="shallow">Shallow DOF</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </details>
+
+          <details class="optgroup">
+            <summary>People &amp; vehicles<span class="og-sign"></span></summary>
+            <div class="og-body">
+              <div class="row2">
+                <label class="field">
+                  <span>People</span>
+                  <select id="sExtPeople">
+                    <option value="no" selected>None</option>
+                    <option value="yes">Include — คนชัด</option>
+                    <option value="blur">Include — คนเบลอ (long exposure)</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Vehicles</span>
+                  <select id="sExtCars">
+                    <option value="no" selected>None</option>
+                    <option value="yes">Include — ภาพที่ไม่มีรถเท่านั้น</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field" id="sExtPeopleDescWrap" style="display:none;">
+                <span>Describe the people (optional)</span>
+                <input type="text" id="sExtPeopleDesc" placeholder="e.g. a couple walking a dog, two children playing">
+              </label>
+              <label class="field">
+                <span>Additional notes (optional)</span>
+                <textarea id="sExtExtra" placeholder="e.g. filmic color grade, low camera angle..." style="min-height:50px;"></textarea>
+              </label>
+            </div>
+          </details>
         </div>
 
         <div id="sIntControls" style="display:none;">
@@ -326,78 +349,147 @@
               </select>
             </label>
           </div>
-          <div class="row2">
-            <label class="field">
-              <span>ไฟประดิษฐ์ (โคมไฟ) — Artificial Lights</span>
-              <select id="sIntFixtures">
-                <option value="on" selected>เปิด — On</option>
-                <option value="off">ปิด — Off</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>วิวนอกหน้าต่าง — Window View</span>
-              <select id="sIntBg">
-                <option value="auto" selected>อัตโนมัติ — ตามภาพต้นฉบับ</option>
-                <option value="sky">ท้องฟ้าโล่ง — Sky only (ภาพที่ไม่มี background)</option>
-                <option value="garden">สวน — Garden / planting</option>
-                <option value="forest">ป่า — Forest / woodland</option>
-                <option value="street">ถนน — Street level</option>
-                <option value="city">วิวเมืองจากตึกสูง — City from high floor</option>
-              </select>
-            </label>
-          </div>
-          <label class="field" id="sIntPeopleWrap">
-            <span>คน — People</span>
-            <select id="sIntPeople">
-              <option value="no" selected>ไม่มี — None</option>
-              <option value="sit">คนนั่ง — Seated (ใช้ที่นั่งเดิมในภาพ)</option>
-              <option value="walk">คนเดินผ่าน — Walking past (เบลอ, long exposure)</option>
-              <option value="both">ทั้งคนนั่งและคนเดินผ่าน</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Focus Mode</span>
-            <select id="sIntFocus">
-              <option value="deep" selected>Deep Focus (sharp throughout)</option>
-              <option value="shallow">Shallow DOF (blurred, emphasizing a focal point)</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Additional notes (optional)</span>
-            <textarea id="sIntExtra" placeholder="e.g. turn on cove/hidden ceiling lighting, warm tone..." style="min-height:50px;"></textarea>
-          </label>
+
+          <details class="optgroup">
+            <summary>Light &amp; window view<span class="og-sign"></span></summary>
+            <div class="og-body">
+              <div class="row2">
+                <label class="field">
+                  <span>ไฟประดิษฐ์ — Artificial Lights</span>
+                  <select id="sIntFixtures">
+                    <option value="on" selected>เปิด — On</option>
+                    <option value="off">ปิด — Off</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Focus Mode</span>
+                  <select id="sIntFocus">
+                    <option value="deep" selected>Deep Focus</option>
+                    <option value="shallow">Shallow DOF</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field">
+                <span>วิวนอกหน้าต่าง — Window View</span>
+                <select id="sIntBg">
+                  <option value="auto" selected>อัตโนมัติ — ตามภาพต้นฉบับ</option>
+                  <option value="sky">ท้องฟ้าโล่ง — Sky only (ภาพที่ไม่มี background)</option>
+                  <option value="garden">สวน — Garden / planting</option>
+                  <option value="forest">ป่า — Forest / woodland</option>
+                  <option value="street">ถนน — Street level</option>
+                  <option value="city">วิวเมืองจากตึกสูง — City from high floor</option>
+                </select>
+              </label>
+            </div>
+          </details>
+
+          <details class="optgroup">
+            <summary>People &amp; notes<span class="og-sign"></span></summary>
+            <div class="og-body">
+              <label class="field" id="sIntPeopleWrap">
+                <span>คน — People</span>
+                <select id="sIntPeople">
+                  <option value="no" selected>ไม่มี — None</option>
+                  <option value="sit">คนนั่ง — Seated (ใช้ที่นั่งเดิมในภาพ)</option>
+                  <option value="walk">คนเดินผ่าน — Walking past (เบลอ, long exposure)</option>
+                  <option value="both">ทั้งคนนั่งและคนเดินผ่าน</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Additional notes (optional)</span>
+                <textarea id="sIntExtra" placeholder="e.g. turn on cove/hidden ceiling lighting, warm tone..." style="min-height:50px;"></textarea>
+              </label>
+            </div>
+          </details>
         </div>
 
-        <label class="field">
-          <span>Prompt (hidden for exterior/interior/semi-outdoor — visible only in Custom mode)</span>
-          <textarea id="sPrompt" readonly style="min-height:90px;"></textarea>
-        </label>
-        <div class="row2">
-          <label class="field">
-            <span>Mode</span>
-            <select id="sTurbo">
-              <option value="true">Turbo — 8 steps (fast)</option>
-              <option value="false">Quality — 20 steps (sharper)</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Guidance</span>
-            <input type="number" id="sGuidance" value="4" step="0.5" min="0" max="20">
-          </label>
-        </div>
-        <div class="row2">
-          <label class="field">
-            <span>Output resolution (Megapixels)</span>
-            <input type="number" id="sMegapixels" value="2" step="0.5" min="0.5" max="8">
-          </label>
-          <label class="field">
-            <span>Seed</span>
-            <div class="seedrow">
-              <input type="number" id="sSeed" value="62">
-              <button class="ghost" id="btnRandSeedSSS">Randomize</button>
+        <details class="optgroup" id="sAdvGroup">
+          <summary>Render settings<span class="og-sign"></span></summary>
+          <div class="og-body">
+            <label class="field">
+              <span>Prompt (visible only in Custom mode)</span>
+              <textarea id="sPrompt" readonly style="min-height:90px;"></textarea>
+            </label>
+            <div class="row2">
+              <label class="field">
+                <span>Mode</span>
+                <select id="sTurbo">
+                  <option value="true">Turbo — 8 steps (fast)</option>
+                  <option value="false">Quality — 20 steps (sharper)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Guidance</span>
+                <input type="number" id="sGuidance" value="4" step="0.5" min="0" max="20">
+              </label>
             </div>
-          </label>
-        </div>
+            <div class="row2">
+              <label class="field">
+                <span>Output resolution (MP)</span>
+                <input type="number" id="sMegapixels" value="2" step="0.5" min="0.5" max="8">
+              </label>
+              <label class="field">
+                <span>Seed</span>
+                <div class="seedrow">
+                  <input type="number" id="sSeed" value="62">
+                  <button class="ghost" id="btnRandSeedSSS">Randomize</button>
+                </div>
+              </label>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="card" id="paramsCardPeople" style="display:none;">
+        <div class="card-head"><h2>03 · Parameters · SSS Add People</h2><span class="plate-no">PL.03</span></div>
+        <label class="field">
+          <span>คน — People</span>
+          <select id="apPose">
+            <option value="still" selected>อยู่นิ่ง — At rest (นั่งหรือยืน ตามที่ภาพมี)</option>
+            <option value="moving">เดินผ่าน — Walking past (เบลอ, long exposure)</option>
+            <option value="both">ทั้งคนอยู่นิ่งและคนเดินผ่าน</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Describe the people (optional)</span>
+          <input type="text" id="apDesc" placeholder="e.g. a couple with a small child, an elderly man reading">
+        </label>
+
+        <details class="optgroup">
+          <summary>Render settings<span class="og-sign"></span></summary>
+          <div class="og-body">
+            <div class="row2">
+              <label class="field">
+                <span>Mode</span>
+                <select id="apTurbo">
+                  <option value="true">Turbo — 8 steps (fast)</option>
+                  <option value="false">Quality — 20 steps (sharper)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Guidance</span>
+                <input type="number" id="apGuidance" value="3.5" step="0.5" min="0" max="20">
+              </label>
+            </div>
+            <div class="row2">
+              <label class="field">
+                <span>Output resolution (MP)</span>
+                <input type="number" id="apMegapixels" value="2" step="0.5" min="0.5" max="8">
+              </label>
+              <label class="field">
+                <span>Seed</span>
+                <div class="seedrow">
+                  <input type="number" id="apSeed" value="62">
+                  <button class="ghost" id="btnRandSeedPeople">Randomize</button>
+                </div>
+              </label>
+            </div>
+            <label class="field">
+              <span>Prompt (read-only)</span>
+              <textarea id="apPrompt" readonly style="min-height:90px;"></textarea>
+            </label>
+          </div>
+        </details>
       </div>
 
       <div class="card">

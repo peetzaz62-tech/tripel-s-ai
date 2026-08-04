@@ -186,6 +186,27 @@
 #view-app details.adv summary::before{content:"▸ ";}
 #view-app details.adv[open] summary::before{content:"▾ ";}
 #view-app details.adv .adv-body{margin-top:8px;}
+/* Collapsible option groups. Showing every control at once made the panel read
+   as a settings dump; the two or three that matter stay out, the rest fold
+   away behind a rule line. */
+#view-app details.optgroup{border-top:1px solid var(--hair);margin-top:16px;}
+#view-app details.optgroup summary{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    list-style:none;cursor:pointer;padding:11px 0 0;
+    font-family:var(--mono);font-size:10px;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--ink-soft);
+  }
+#view-app details.optgroup summary::-webkit-details-marker{display:none;}
+#view-app details.optgroup summary:hover{color:var(--ink);}
+#view-app details.optgroup summary .og-sign{
+    font-family:var(--mono);font-size:13px;line-height:1;color:var(--ink-faint);
+  }
+#view-app details.optgroup[open] summary .og-sign{color:var(--ink-soft);}
+#view-app details.optgroup[open] summary .og-sign::after{content:"–";}
+#view-app details.optgroup summary .og-sign::after{content:"+";}
+#view-app details.optgroup .og-body{padding-top:13px;}
+#view-app details.optgroup .og-body > label.field:last-child,
+#view-app details.optgroup .og-body > .row2:last-child label.field{margin-bottom:0;}
 #view-app .grid{display:grid;grid-template-columns:330px 1fr;gap:22px;flex:1;min-height:0;}
 @media (max-width:900px){#view-app .grid{grid-template-columns:1fr;overflow-y:auto;}}
 #view-app .grid > div:first-child{overflow-y:auto;padding-right:6px;min-height:0;}
