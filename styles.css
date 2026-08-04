@@ -210,23 +210,33 @@
 /* These two must out-specify "#view-app label.field span{display:block}", which
    otherwise flattens the row and the scale back into stacked blocks. */
 #view-app label.field span.slider-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
-#view-app label.field span.slider-head span.sv{display:inline;margin:0;font-family:var(--mono);font-size:11px;color:var(--ink);}
+#view-app label.field span.slider-head span.sv{
+    display:inline;margin:0;font-family:var(--mono);font-size:12px;color:var(--ink);
+    background:var(--paper-sunk);border:1px solid var(--hair-strong);border-radius:2px;
+    padding:1px 9px;min-width:26px;text-align:center;
+  }
 #view-app label.field span.count-scale span{display:inline;margin:0;font-size:9.5px;color:var(--ink-faint);}
 #view-app input[type=range].count{
     -webkit-appearance:none;appearance:none;width:100%;background:transparent;
-    padding:0;border:0;height:18px;cursor:pointer;
+    padding:0;border:0;height:22px;cursor:pointer;display:block;
   }
 #view-app input[type=range].count:focus{outline:none;box-shadow:none;}
+/* A 1px track with a hollow handle was too faint to read as a control at all —
+   it looked like a rule line. Solid track, solid handle. */
 #view-app input[type=range].count::-webkit-slider-runnable-track{
-    height:1px;background:var(--hair-strong);border-radius:0;
+    height:4px;background:var(--paper-sunk);border:1px solid var(--hair-strong);border-radius:3px;
   }
-#view-app input[type=range].count::-moz-range-track{height:1px;background:var(--hair-strong);}
+#view-app input[type=range].count::-moz-range-track{
+    height:4px;background:var(--paper-sunk);border:1px solid var(--hair-strong);border-radius:3px;
+  }
 #view-app input[type=range].count::-webkit-slider-thumb{
-    -webkit-appearance:none;appearance:none;width:11px;height:11px;margin-top:-5px;
-    background:var(--paper);border:1px solid var(--ink);border-radius:1px;
+    -webkit-appearance:none;appearance:none;width:16px;height:16px;margin-top:-7px;
+    background:var(--accent);border:2px solid var(--paper-raised);border-radius:50%;
+    box-shadow:0 0 0 1px var(--accent);
   }
 #view-app input[type=range].count::-moz-range-thumb{
-    width:11px;height:11px;background:var(--paper);border:1px solid var(--ink);border-radius:1px;
+    width:16px;height:16px;background:var(--accent);border:2px solid var(--paper-raised);
+    border-radius:50%;box-shadow:0 0 0 1px var(--accent);
   }
 #view-app input[type=range].count:focus::-webkit-slider-thumb{box-shadow:0 0 0 3px var(--accent-tint);}
 #view-app input[type=range].count:focus::-moz-range-thumb{box-shadow:0 0 0 3px var(--accent-tint);}
