@@ -278,9 +278,17 @@ if(weather === 'rain') return `Weather — Rain: the whole scene sits under a di
 function extBackgroundParagraph(bg){
   // These two describe a place the building stands in rather than a band of
   // scenery behind it. The old low-rise version ended "No towers or landmarks",
-  // which names the two things it did not want — dropped on the usual grounds.
-  if(bg === 'low') return `Background & Horizon: the building stands in a quiet residential neighbourhood — neighbouring one and two storey houses to either side and behind it, each with its own garden wall, driveway and planting, and street trees along the road between them. Every neighbour sits clearly lower than the main building and further back, softening and losing contrast with distance. They read as ordinary houses someone lives in, never as the subject of the photograph.`;
-  if(bg === 'high') return `Background & Horizon: the building stands in the middle of a city — neighbouring urban buildings press close on either side and rise behind it, a dense mix of mid-rise blocks and taller towers with their own windows and rooflines, receding into atmospheric haze as they go back. The city carries on past the edges of the frame. It reads as the place this building genuinely sits in, never as a skyline placed behind it.`;
+  // naming the two things it did not want — dropped on the usual grounds.
+  //
+  // Both are written to read as current construction. The first attempt asked
+  // only for houses and for a city, and got pitched tiled roofs and tenement
+  // blocks with window air-conditioners — the model's default for those words
+  // is dated. Saying so explicitly, and describing the spacing, is what fixed
+  // it. "Manhattan-like" was tested for the city and rejected: it does produce
+  // New York, but New York includes its pre-war stock, and older buildings came
+  // back with it.
+  if(bg === 'low') return `Background & Horizon: the building stands in a contemporary residential neighbourhood — neighbouring one and two storey houses set well apart on their own generous plots, each a clean modern volume with a flat or shallow roof, smooth painted and timber-clad walls, large glazing and a carport. Low landscaped walls, planted strips and young trees separate them, and sky shows in the open gaps between one house and the next. Every neighbour sits lower than the main building and further back, softening and losing contrast with distance, and reads as a house built in the last few years.`;
+  if(bg === 'high') return `Background & Horizon: the building stands in a modern city centre — contemporary glass and steel towers rise close on either side and behind it, their curtain-wall facades stepping back as they go up and reflecting the sky, with a broad avenue running past and the city receding into atmospheric haze. Everything around it is current construction, clean and sharp-edged. It reads as the downtown this building genuinely opens onto, never as a skyline placed behind it.`;
   if(bg === 'trees') return `Background & Horizon: soften the horizon with distant trees and shrubs consistent with the setting, rendered with atmospheric perspective (softer, lower contrast, slightly hazy with distance). No large new buildings or landmarks.`;
   return `Background & Horizon: the source image is the authority on what stands behind and beside the building. Whatever it already shows there — its own buildings, trees, planting, sky or backdrop — stays exactly that: the same elements in the same places at the same distance, changed only by being rendered photographically. Nothing is substituted for something more interesting and nothing is added around it: no extra building, tree, skyline, hill or horizon that the source does not already contain. Where the source shows nothing but blank sky behind the building, that stays plain open sky and no scene is composed to fill it.`;
 }
