@@ -82,7 +82,6 @@ export async function POST(req) {
         upscaleBy: Math.min(Math.max(num(params.upscaleBy, 2), 1), 4),
         denoise: Math.min(Math.max(num(params.denoise, 0.15), 0), 1),
         steps: Math.min(Math.max(int(params.steps, 20), 1), 100),
-        cfg: num(params.cfg, 8),
         seed: int(params.seed, Math.floor(Math.random() * 1e9)),
       });
     }

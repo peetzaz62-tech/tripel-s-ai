@@ -14,7 +14,11 @@ export function buildMagnificGraph(opts) {
     "7": { class_type: "FluxGuidance", inputs: { conditioning: ["6", 0], guidance: 3.5 } },
     "8": { class_type: "UltimateSDUpscale", inputs: {
       image: ["1", 0], model: ["2", 0], positive: ["7", 0], negative: ["7", 0], vae: ["4", 0], upscale_model: ["5", 0],
-      upscale_by: opts.upscaleBy, seed: opts.seed, steps: opts.steps, cfg: opts.cfg,
+      // CFG is pinned to 1 and is not a user control — see app.js for the
+      // measurement. negative is wired to the same node as positive, so cfg
+      // cannot alter the image, and only cfg 1.0 lets ComfyUI skip the uncond
+      // pass. cfg 8 = 505s, cfg 1 = 233s, difference image flat black.
+      upscale_by: opts.upscaleBy, seed: opts.seed, steps: opts.steps, cfg: 1,
       sampler_name: "euler", scheduler: "simple", denoise: opts.denoise,
       mode_type: "Linear", tile_width: 1024, tile_height: 1024, mask_blur: 8, tile_padding: 32,
       seam_fix_mode: "None", seam_fix_denoise: 1, seam_fix_width: 64, seam_fix_mask_blur: 8, seam_fix_padding: 16,

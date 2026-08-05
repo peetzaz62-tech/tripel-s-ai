@@ -25,7 +25,14 @@ function buildMagnificPrompt(opts){
     "7": { class_type:"FluxGuidance", inputs:{ conditioning:["6",0], guidance:3.5 } },
     "8": { class_type:"UltimateSDUpscale", inputs:{
         image:["1",0], model:["2",0], positive:["7",0], negative:["7",0], vae:["4",0], upscale_model:["5",0],
-        upscale_by: opts.upscaleBy, seed: opts.seed, steps: opts.steps, cfg: opts.cfg,
+        // CFG is pinned to 1 and is not a user control. Node "8" wires negative
+        // to the same conditioning as positive, so out = neg + cfg*(pos-neg)
+        // = neg at every scale — cfg cannot change this image. ComfyUI only
+        // skips evaluating the uncond branch when cfg is exactly 1.0, so any
+        // higher value paid for a second forward pass and threw it away.
+        // Measured 2026-08-06 on one 2MP source: cfg 8 = 505s, cfg 1 = 233s,
+        // and the difference image between the two is flat black.
+        upscale_by: opts.upscaleBy, seed: opts.seed, steps: opts.steps, cfg: 1,
         sampler_name:"euler", scheduler:"simple", denoise: opts.denoise,
         mode_type:"Linear", tile_width:1024, tile_height:1024, mask_blur:8, tile_padding:32,
         seam_fix_mode:"None", seam_fix_denoise:1, seam_fix_width:64, seam_fix_mask_blur:8, seam_fix_padding:16,
@@ -995,7 +1002,6 @@ async function runWorkflow(){
       upscaleBy: parseFloat($('pUpscaleBy').value),
       denoise: parseFloat($('pDenoise').value),
       steps: parseInt($('pSteps').value),
-      cfg: parseFloat($('pCfg').value),
       seed: parseInt($('pSeed').value)
     };
     prompt = buildMagnificPrompt(opts);

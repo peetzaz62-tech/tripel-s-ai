@@ -384,7 +384,6 @@ async function runWorkflow(){
       upscaleBy: parseFloat($('pUpscaleBy').value),
       denoise: parseFloat($('pDenoise').value),
       steps: parseInt($('pSteps').value),
-      cfg: parseFloat($('pCfg').value),
       seed: parseInt($('pSeed').value)
     };
   }
