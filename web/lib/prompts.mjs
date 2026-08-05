@@ -122,10 +122,16 @@ function extWeatherParagraph(weather){
   return ''; // clear
 }
 
+// Auto is the default, and it composes nothing. Every other option tells the
+// model to invent a backdrop, and inventing is what makes an exterior read as
+// CG — interior looks more real largely because it only has to enhance what was
+// photographed. This is the same clause that stopped interior window views from
+// substituting a nicer scene, pointed outward instead of through glazing.
 function extBackgroundParagraph(bg){
   if(bg === 'low') return `Background & Horizon: distant low-rise buildings (one to three storeys), all clearly lower than the main building and never competing with its silhouette, rendered with atmospheric perspective (softer, lower contrast, hazier with distance). No towers or landmarks.`;
   if(bg === 'high') return `Background & Horizon: a distant generic high-rise skyline softened by atmospheric haze, reading as background depth behind the main building, never overpowering it.`;
-  return `Background & Horizon: soften the horizon with distant trees and shrubs consistent with the setting, rendered with atmospheric perspective (softer, lower contrast, slightly hazy with distance). No large new buildings or landmarks.`;
+  if(bg === 'trees') return `Background & Horizon: soften the horizon with distant trees and shrubs consistent with the setting, rendered with atmospheric perspective (softer, lower contrast, slightly hazy with distance). No large new buildings or landmarks.`;
+  return `Background & Horizon: the source image is the authority on what stands behind and beside the building. Whatever it already shows there — its own buildings, trees, planting, sky or backdrop — stays exactly that: the same elements in the same places at the same distance, changed only by being rendered photographically. Nothing is substituted for something more interesting and nothing is added around it: no extra building, tree, skyline, hill or horizon that the source does not already contain. Where the source shows nothing but blank sky behind the building, that stays plain open sky and no scene is composed to fill it.`;
 }
 
 function extPeopleParagraph(people, desc){
@@ -192,7 +198,7 @@ export function buildExteriorPrompt(p = {}){
   const time = p.time || 'noon';
   const clouds = p.clouds || 'thin';
   const weather = p.weather || 'clear';
-  const background = p.background || 'trees';
+  const background = p.background || 'auto';
   const view = p.view || 'normal';
   const people = p.people || 'no';
   const peopleDesc = String(p.peopleDesc || '').trim();
@@ -235,7 +241,7 @@ export function buildSemiOutdoorPrompt(p = {}){
   const time = p.time || 'noon';
   const clouds = p.clouds || 'thin';
   const weather = p.weather || 'clear';
-  const background = p.background || 'trees';
+  const background = p.background || 'auto';
   const view = p.view || 'normal';
   const people = p.people || 'no';
   const peopleDesc = String(p.peopleDesc || '').trim();
