@@ -297,14 +297,26 @@ function extViewParagraph(view){
   return ''; // eye-level — camera already locked
 }
 
-// Known limitation, not a bug to keep chasing in prose: on a source that
-// already contains parked cars, switching this on adds more of them. A
-// conditional rewrite ("only where the source contains no vehicle at all")
-// was tested on 2026-07-29 and did not help — mentioning vehicles is what
-// produces vehicles. The dropdown label carries the warning instead, and the
-// wording here stays short.
+// Vehicles offers only the moving car. A parked one was tested on 2026-08-06
+// and dropped: with generic wording the body melts — bulging panels, oval wheel
+// arches, an extra window in the greenhouse — and 20 steps does not fix it,
+// because "realistic vehicles" gives the model no real shape to hold onto.
+// Naming an actual model does fix it, but then the mode only works for whoever
+// wants that exact car, and the count stays unreliable on top.
+//
+// The moving car has none of those problems. Long exposure is doing the same
+// job it does for people: the smear hides what the model cannot resolve at this
+// size, and everything fixed in the frame stays sharp. Verified with and
+// without a named model.
+//
+// Known limitation kept from the parked version: on a source that already
+// contains vehicles this adds another. Naming vehicles is what produces
+// vehicles, and no conditional rewrite has beaten that — the dropdown label
+// carries the warning instead.
 function extCarsParagraph(cars){
-  if(cars === 'yes') return `Vehicles: one or two realistic vehicles in plausible spots (driveway, street, or parking area), correctly scaled and lit, secondary to the building.`;
+  // 'yes' was the old parked value; anything switched on now means moving, so
+  // a saved setting does not silently come back with no car at all.
+  if(cars === 'blur' || cars === 'yes') return `Vehicles: exactly one car driving along the road in front of the building, caught during a long exposure so that vehicle alone is smeared into a soft translucent streak along its direction of travel, while everything else in the frame stays perfectly sharp — correctly scaled to the building, lit consistently with the scene, secondary to the building. No other vehicle appears anywhere in the frame.`;
   return ''; // Off: emit nothing — see extPeopleParagraph
 }
 
