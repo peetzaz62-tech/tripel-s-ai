@@ -51,7 +51,20 @@ const SAVE_IMAGE_NODE_ID_MAGNIFIC = "9";
 // the ImageCompare preview) are omitted since they don't feed the SaveImage
 // output and would otherwise fail validation (missing required inputs).
 // ---------------------------------------------------------------------------
+// Mode picks two things that used to be welded together by a pair of switch
+// nodes: whether the Turbo LoRA is in the model path, and how many steps run.
+// They were welded because the exported workflow drove both from one boolean,
+// which left the useful third combination — no LoRA, 8 steps — unreachable from
+// the UI. That combination is the one that held the ceiling detail and the
+// light direction on the kitchen source, so it gets its own option.
+//
+// The LoRA also lightens dark materials (it is what turned a dark grey fridge
+// stainless), so it is left out of the graph entirely unless Turbo asks for it
+// rather than loaded and switched around.
 function buildSSSPrompt(opts){
+  const mode = opts.mode || 'turbo';
+  const useLora = mode === 'turbo';
+  const steps = mode === 'quality' ? 20 : 8;
   return {
     "125": { class_type:"LoadImage", inputs:{ image: opts.imageName } },
     // The exported workflow wires node 45 to the PreviewImage node (124), but
@@ -62,13 +75,7 @@ function buildSSSPrompt(opts){
     "68:38": { class_type:"CLIPLoader", inputs:{ clip_name:"mistral_3_small_flux2_bf16.safetensors", type:"flux2", device:"default" } },
     "68:12": { class_type:"UNETLoader", inputs:{ unet_name:"flux2_dev_fp8mixed.safetensors", weight_dtype:"default" } },
     "68:10": { class_type:"VAELoader", inputs:{ vae_name:"full_encoder_small_decoder.safetensors" } },
-    "68:89": { class_type:"LoraLoaderModelOnly", inputs:{ lora_name:"Flux_2-Turbo-LoRA_comfyui.safetensors", strength_model:1, model:["68:12",0] } },
-
-    "68:94": { class_type:"PrimitiveBoolean", inputs:{ value: opts.turbo } },
-    "68:92": { class_type:"ComfySwitchNode", inputs:{ switch:["68:94",0], on_false:["68:12",0], on_true:["68:89",0] } },
-    "68:90": { class_type:"PrimitiveInt", inputs:{ value:8 } },
-    "68:91": { class_type:"PrimitiveInt", inputs:{ value:20 } },
-    "68:93": { class_type:"ComfySwitchNode", inputs:{ switch:["68:94",0], on_false:["68:91",0], on_true:["68:90",0] } },
+    ...(useLora ? { "68:89": { class_type:"LoraLoaderModelOnly", inputs:{ lora_name:"Flux_2-Turbo-LoRA_comfyui.safetensors", strength_model:1, model:["68:12",0] } } } : {}),
 
     "68:6":  { class_type:"CLIPTextEncode", inputs:{ text: opts.prompt, clip:["68:38",0] } },
     "68:26": { class_type:"FluxGuidance", inputs:{ guidance: opts.guidance, conditioning:["68:6",0] } },
@@ -77,11 +84,11 @@ function buildSSSPrompt(opts){
     "68:43": { class_type:"ReferenceLatent", inputs:{ conditioning:["68:26",0], latent:["68:44",0] } },
     "68:72": { class_type:"GetImageSize", inputs:{ image:["45",0] } },
     "68:47": { class_type:"EmptyFlux2LatentImage", inputs:{ width:["68:72",0], height:["68:72",1], batch_size:1 } },
-    "68:48": { class_type:"Flux2Scheduler", inputs:{ steps:["68:93",0], width:["68:72",0], height:["68:72",1] } },
+    "68:48": { class_type:"Flux2Scheduler", inputs:{ steps, width:["68:72",0], height:["68:72",1] } },
 
     "68:25": { class_type:"RandomNoise", inputs:{ noise_seed: opts.seed } },
     "68:16": { class_type:"KSamplerSelect", inputs:{ sampler_name:"euler" } },
-    "68:22": { class_type:"BasicGuider", inputs:{ model:["68:92",0], conditioning:["68:43",0] } },
+    "68:22": { class_type:"BasicGuider", inputs:{ model:[useLora ? "68:89" : "68:12", 0], conditioning:["68:43",0] } },
     "68:13": { class_type:"SamplerCustomAdvanced", inputs:{ noise:["68:25",0], guider:["68:22",0], sampler:["68:16",0], sigmas:["68:48",0], latent_image:["68:47",0] } },
     "68:8":  { class_type:"VAEDecode", inputs:{ samples:["68:13",0], vae:["68:10",0] } },
 
@@ -997,7 +1004,7 @@ async function runWorkflow(){
     const opts = {
       imageName: state.uploadedName,
       prompt: $('sPromptType').value === 'custom' ? $('sPrompt').value : hiddenPromptCache,
-      turbo: $('sTurbo').value === 'true',
+      mode: $('sTurbo').value,
       guidance: parseFloat($('sGuidance').value),
       megapixels: parseFloat($('sMegapixels').value),
       seed: parseInt($('sSeed').value)
@@ -1013,7 +1020,7 @@ async function runWorkflow(){
       prompt: buildAddPeoplePromptP({
         pose: $('apPose').value, count: parseInt($('apCount').value), desc: $('apDesc').value
       }),
-      turbo: $('apTurbo').value === 'true',
+      mode: $('apTurbo').value,
       guidance: parseFloat($('apGuidance').value),
       megapixels: parseFloat($('apMegapixels').value),
       seed: parseInt($('apSeed').value)

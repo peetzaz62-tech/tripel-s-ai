@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-06k">
+<link rel="stylesheet" href="styles.css?v=2026-08-06l">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -401,8 +401,9 @@
               <label class="field">
                 <span>Mode</span>
                 <select id="sTurbo">
-                  <option value="true">Turbo — 8 steps (fast)</option>
-                  <option value="false">Quality — 20 steps (sharper)</option>
+                  <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
+                  <option value="balanced">Balanced — 8 steps ไม่มี LoRA (วัสดุสีเข้มตรงกว่า)</option>
+                  <option value="quality">Quality — 20 steps (คมสุด วัสดุตรงสุด)</option>
                 </select>
               </label>
               <label class="field">
@@ -454,8 +455,9 @@
               <label class="field">
                 <span>Mode</span>
                 <select id="apTurbo">
-                  <option value="true">Turbo — 8 steps (fast)</option>
-                  <option value="false">Quality — 20 steps (sharper)</option>
+                  <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
+                  <option value="balanced">Balanced — 8 steps ไม่มี LoRA (วัสดุสีเข้มตรงกว่า)</option>
+                  <option value="quality">Quality — 20 steps (คมสุด วัสดุตรงสุด)</option>
                 </select>
               </label>
               <label class="field">
@@ -705,6 +707,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-06k"></script>
+<script src="app.js?v=2026-08-06l"></script>
 </body>
 </html>
