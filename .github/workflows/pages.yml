@@ -1,0 +1,50 @@
+# Publishes the repo-root front-end to GitHub Pages.
+#
+# Replaces the legacy "pages-build-deployment" flow, whose deploy job failed and
+# then wedged: the queued re-run could not be cancelled, pushes stopped
+# producing new runs at all, and the site served "Site not found". Driving the
+# deploy from a workflow we own means a stuck run can be cancelled like any
+# other, and concurrency is ours to control.
+#
+# It also narrows what gets published. The legacy flow served the whole repo
+# root, which put worker/Dockerfile and supabase/schema.sql on the public site.
+# Only the three files the tool actually needs are copied into _site.
+name: Deploy site to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never queue behind a run that is already going stale — supersede it.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the site
+        run: |
+          mkdir _site
+          cp index.html styles.css app.js _site/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
