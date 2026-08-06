@@ -274,6 +274,12 @@
 #view-app .plate-no{font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:1px;white-space:nowrap;}
 #view-app label.field{display:block;margin-bottom:10px;}
 #view-app label.field span{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.2px;color:var(--ink-soft);margin-bottom:6px;}
+/* Sits under a control rather than above it, so it needs the margin flipped.
+   Must out-specify the rule directly above, hence label.field span.fieldhint. */
+#view-app label.field span.fieldhint{
+    font-family:var(--sans);font-size:11.5px;line-height:1.45;
+    color:var(--ink-faint);letter-spacing:0;margin:6px 0 0;
+}
 #view-app input[type=text],#view-app input[type=number],#view-app select,#view-app textarea{
     width:100%;background:var(--paper);border:1px solid var(--hair-strong);
     color:var(--ink);padding:9px 10px;border-radius:2px;font-size:13.5px;

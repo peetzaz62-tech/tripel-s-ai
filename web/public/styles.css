@@ -186,6 +186,66 @@
 #view-app details.adv summary::before{content:"▸ ";}
 #view-app details.adv[open] summary::before{content:"▾ ";}
 #view-app details.adv .adv-body{margin-top:8px;}
+/* Collapsible option groups. Showing every control at once made the panel read
+   as a settings dump; the two or three that matter stay out, the rest fold
+   away behind a rule line. */
+#view-app details.optgroup{border-top:1px solid var(--hair);margin-top:16px;}
+#view-app details.optgroup summary{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    list-style:none;cursor:pointer;padding:11px 0 0;
+    font-family:var(--mono);font-size:10px;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--ink-soft);
+  }
+#view-app details.optgroup summary::-webkit-details-marker{display:none;}
+#view-app details.optgroup summary:hover{color:var(--ink);}
+#view-app details.optgroup summary .og-sign{
+    font-family:var(--mono);font-size:13px;line-height:1;color:var(--ink-faint);
+  }
+#view-app details.optgroup[open] summary .og-sign{color:var(--ink-soft);}
+#view-app details.optgroup[open] summary .og-sign::after{content:"–";}
+#view-app details.optgroup summary .og-sign::after{content:"+";}
+#view-app details.optgroup .og-body{padding-top:13px;}
+/* Count slider. Styled as a hairline track with a small square handle so it
+   reads as part of the drawing set rather than a browser default. */
+/* These two must out-specify "#view-app label.field span{display:block}", which
+   otherwise flattens the row and the scale back into stacked blocks. */
+#view-app label.field span.slider-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+#view-app label.field span.slider-head span.sv{
+    display:inline;margin:0;font-family:var(--mono);font-size:12px;color:var(--ink);
+    background:var(--paper-sunk);border:1px solid var(--hair-strong);border-radius:2px;
+    padding:1px 9px;min-width:26px;text-align:center;
+  }
+#view-app label.field span.count-scale span{display:inline;margin:0;font-size:9.5px;color:var(--ink-faint);}
+#view-app input[type=range].count{
+    -webkit-appearance:none;appearance:none;width:100%;background:transparent;
+    padding:0;border:0;height:22px;cursor:pointer;display:block;
+  }
+#view-app input[type=range].count:focus{outline:none;box-shadow:none;}
+/* A 1px track with a hollow handle was too faint to read as a control at all —
+   it looked like a rule line. Solid track, solid handle. */
+#view-app input[type=range].count::-webkit-slider-runnable-track{
+    height:4px;background:var(--paper-sunk);border:1px solid var(--hair-strong);border-radius:3px;
+  }
+#view-app input[type=range].count::-moz-range-track{
+    height:4px;background:var(--paper-sunk);border:1px solid var(--hair-strong);border-radius:3px;
+  }
+#view-app input[type=range].count::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:16px;height:16px;margin-top:-7px;
+    background:var(--accent);border:2px solid var(--paper-raised);border-radius:50%;
+    box-shadow:0 0 0 1px var(--accent);
+  }
+#view-app input[type=range].count::-moz-range-thumb{
+    width:16px;height:16px;background:var(--accent);border:2px solid var(--paper-raised);
+    border-radius:50%;box-shadow:0 0 0 1px var(--accent);
+  }
+#view-app input[type=range].count:focus::-webkit-slider-thumb{box-shadow:0 0 0 3px var(--accent-tint);}
+#view-app input[type=range].count:focus::-moz-range-thumb{box-shadow:0 0 0 3px var(--accent-tint);}
+#view-app label.field span.count-scale{
+    display:flex;justify-content:space-between;
+    font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);margin:1px 0 0;
+  }
+#view-app details.optgroup .og-body > label.field:last-child,
+#view-app details.optgroup .og-body > .row2:last-child label.field{margin-bottom:0;}
 #view-app .grid{display:grid;grid-template-columns:330px 1fr;gap:22px;flex:1;min-height:0;}
 @media (max-width:900px){#view-app .grid{grid-template-columns:1fr;overflow-y:auto;}}
 #view-app .grid > div:first-child{overflow-y:auto;padding-right:6px;min-height:0;}
@@ -214,6 +274,12 @@
 #view-app .plate-no{font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:1px;white-space:nowrap;}
 #view-app label.field{display:block;margin-bottom:10px;}
 #view-app label.field span{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.2px;color:var(--ink-soft);margin-bottom:6px;}
+/* Sits under a control rather than above it, so it needs the margin flipped.
+   Must out-specify the rule directly above, hence label.field span.fieldhint. */
+#view-app label.field span.fieldhint{
+    font-family:var(--sans);font-size:11.5px;line-height:1.45;
+    color:var(--ink-faint);letter-spacing:0;margin:6px 0 0;
+}
 #view-app input[type=text],#view-app input[type=number],#view-app select,#view-app textarea{
     width:100%;background:var(--paper);border:1px solid var(--hair-strong);
     color:var(--ink);padding:9px 10px;border-radius:2px;font-size:13.5px;
