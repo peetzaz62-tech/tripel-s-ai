@@ -27,7 +27,7 @@ create trigger on_auth_user_created
 create table public.jobs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  workflow text not null,                 -- 'magnific' | 'sss'
+  workflow text not null,                 -- 'magnific' | 'sss' | 'people'
   status text not null default 'PENDING', -- PENDING | IN_PROGRESS | COMPLETED | FAILED
   runpod_job_id text,
   cost int not null default 1,
