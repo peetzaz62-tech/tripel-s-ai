@@ -61,10 +61,21 @@ const SAVE_IMAGE_NODE_ID_MAGNIFIC = "9";
 // The LoRA also lightens dark materials (it is what turned a dark grey fridge
 // stainless), so it is left out of the graph entirely unless Turbo asks for it
 // rather than loaded and switched around.
+// Denoise below 1 turns this into img2img: the sampler starts from the source's
+// own latent and runs only the tail of the schedule, so tone and colour survive
+// because they were never thrown away. Sixteen renders proved no wording can
+// make the model hold a dark deck dark — starting from the dark deck does it
+// with no sentence at all.
+//
+// Note the granularity trap: SplitSigmasDenoise cuts on step boundaries, so at
+// 8 steps there are only eight settings and 0.7 and 0.8 land on the same one.
+// Use Quality (20 steps) when a value between them is needed.
 function buildSSSPrompt(opts){
   const mode = opts.mode || 'turbo';
   const useLora = mode === 'turbo';
   const steps = mode === 'quality' ? 20 : 8;
+  const denoise = Number(opts.denoise);
+  const img2img = denoise > 0 && denoise < 1;
   return {
     "125": { class_type:"LoadImage", inputs:{ image: opts.imageName } },
     // The exported workflow wires node 45 to the PreviewImage node (124), but
@@ -83,13 +94,18 @@ function buildSSSPrompt(opts){
     "68:44": { class_type:"VAEEncode", inputs:{ pixels:["45",0], vae:["68:10",0] } },
     "68:43": { class_type:"ReferenceLatent", inputs:{ conditioning:["68:26",0], latent:["68:44",0] } },
     "68:72": { class_type:"GetImageSize", inputs:{ image:["45",0] } },
-    "68:47": { class_type:"EmptyFlux2LatentImage", inputs:{ width:["68:72",0], height:["68:72",1], batch_size:1 } },
+    // img2img starts from the encoded source instead, so the empty latent is
+    // left out of the graph rather than built and ignored.
+    ...(img2img ? {} : { "68:47": { class_type:"EmptyFlux2LatentImage", inputs:{ width:["68:72",0], height:["68:72",1], batch_size:1 } } }),
     "68:48": { class_type:"Flux2Scheduler", inputs:{ steps, width:["68:72",0], height:["68:72",1] } },
+    ...(img2img ? { "68:95": { class_type:"SplitSigmasDenoise", inputs:{ sigmas:["68:48",0], denoise } } } : {}),
 
     "68:25": { class_type:"RandomNoise", inputs:{ noise_seed: opts.seed } },
     "68:16": { class_type:"KSamplerSelect", inputs:{ sampler_name:"euler" } },
     "68:22": { class_type:"BasicGuider", inputs:{ model:[useLora ? "68:89" : "68:12", 0], conditioning:["68:43",0] } },
-    "68:13": { class_type:"SamplerCustomAdvanced", inputs:{ noise:["68:25",0], guider:["68:22",0], sampler:["68:16",0], sigmas:["68:48",0], latent_image:["68:47",0] } },
+    "68:13": { class_type:"SamplerCustomAdvanced", inputs:{ noise:["68:25",0], guider:["68:22",0], sampler:["68:16",0],
+      sigmas: img2img ? ["68:95",1] : ["68:48",0],
+      latent_image: img2img ? ["68:44",0] : ["68:47",0] } },
     "68:8":  { class_type:"VAEDecode", inputs:{ samples:["68:13",0], vae:["68:10",0] } },
 
     "9": { class_type:"SaveImage", inputs:{ images:["68:8",0], filename_prefix:"SSS" } }
@@ -1007,6 +1023,10 @@ async function runWorkflow(){
       mode: $('sTurbo').value,
       guidance: parseFloat($('sGuidance').value),
       megapixels: parseFloat($('sMegapixels').value),
+      // Add People deliberately does not pass this: its input is already a
+      // finished photograph, and starting from its latent would leave no room
+      // for the figures to appear.
+      denoise: parseFloat($('sDenoise').value),
       seed: parseInt($('sSeed').value)
     };
     prompt = buildSSSPrompt(opts);
