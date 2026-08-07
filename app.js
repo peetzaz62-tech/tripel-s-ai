@@ -121,7 +121,7 @@ function buildSSSPrompt(opts){
 const SAVE_IMAGE_NODE_ID_SSS = "9";
 
 // ---------------------------------------------------------------------------
-let state = { workflow:"magnific", uploadedName:null, origPreviewURL:null, connected:false, clientId: crypto.randomUUID() };
+let state = { workflow:"magnific", uploadedName:null, origPreviewURL:null, connected:false, clientId: crypto.randomUUID(), autoMaterials:"" };
 
 const $ = id => document.getElementById(id);
 const serverUrlEl = $('serverUrl');
@@ -745,16 +745,77 @@ function readExtParams(){
 function buildExteriorPrompt(){ return buildExteriorPromptP(readExtParams()); }
 function buildSemiOutdoorPrompt(){ return buildSemiOutdoorPromptP(readExtParams()); }
 function buildInteriorPrompt(){
+  // Anything typed wins the tail position, so a hand-written correction still
+  // overrides what was read off the image.
+  const auto = ($('sAutoMat').checked && state.autoMaterials) ? state.autoMaterials : '';
+  const typed = $('sIntExtra').value.trim();
   return buildInteriorPromptP({
     intLight: $('sIntLight').value, intShot: $('sIntShot').value,
     intFixtures: $('sIntFixtures').value, intBg: $('sIntBg').value,
     intFocus: $('sIntFocus').value, intPeople: $('sIntPeople').value,
-    intExtra: $('sIntExtra').value
+    intExtra: [auto, typed].filter(Boolean).join(' ')
   });
 }
 
 function updatePeopleDescVisibility(){
   $('sExtPeopleDescWrap').style.display = $('sExtPeople').value !== 'no' ? '' : 'none';
+}
+
+// ---------------------------------------------------------------------------
+// Auto material colours.
+//
+// A rule the model cannot evaluate is dead text — sixteen renders failed to
+// make any wording of "keep the tones" hold a dark ceiling. What does work is
+// naming the colour outright, and that value can be read off the source instead
+// of typed: the ceiling came back charcoal and the floor walnut from a sentence
+// this function wrote, matching what a human typed by hand.
+//
+// A SketchUp interior is shot square-on, so the top band is ceiling and the
+// bottom band is floor. Exteriors are excluded — up there the top band is sky.
+const TONES = [[40,'near-black'],[75,'very dark'],[115,'dark'],[155,'mid'],[200,'light'],[999,'very light']];
+
+function describeBand(r, g, b){
+  const L = 0.299*r + 0.587*g + 0.114*b;
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b);
+  const sat = mx === 0 ? 0 : (mx - mn) / mx;
+  const tone = TONES.find(t => L < t[0])[1];
+  let hue;
+  if(sat < 0.10) hue = 'neutral grey';
+  else if(sat < 0.22) hue = r >= b ? 'warm grey' : 'cool grey';
+  else hue = r >= b ? (L < 115 ? 'brown' : 'tan') : 'blue-grey';
+  return tone + ' ' + hue;
+}
+
+// Median rather than mean: a few ceiling downlights would drag an average up
+// and end up describing a surface that is not in the room.
+function sampleBand(data, w, y0, y1){
+  const R = [], G = [], B = [];
+  for(let y = y0; y < y1; y += 2)
+    for(let x = Math.floor(w*0.1); x < Math.floor(w*0.9); x += 2){
+      const i = (y*w + x) * 4;
+      R.push(data[i]); G.push(data[i+1]); B.push(data[i+2]);
+    }
+  const med = a => { a.sort((p,q)=>p-q); return a[a.length>>1]; };
+  return describeBand(med(R), med(G), med(B));
+}
+
+function readMaterialSentence(img){
+  try{
+    const W = 400, H = Math.max(1, Math.round(W * img.naturalHeight / img.naturalWidth));
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    c.getContext('2d').drawImage(img, 0, 0, W, H);
+    // Throws on a tainted canvas — opening the page over file:// can do that.
+    const d = c.getContext('2d').getImageData(0, 0, W, H).data;
+    const ceiling = sampleBand(d, W, 0, Math.floor(H*0.10));
+    const walls   = sampleBand(d, W, Math.floor(H*0.35), Math.floor(H*0.60));
+    const floor   = sampleBand(d, W, Math.floor(H*0.80), H);
+    return `The ceiling is ${ceiling}, and it stays that dark rather than reading as white. `
+         + `The floor is ${floor}. The walls are ${walls}.`;
+  }catch(e){
+    log('Could not read material colours from the image (' + e.message + ') — carrying on without them.', 'warn');
+    return '';
+  }
 }
 
 let hiddenPromptCache = '';
@@ -818,7 +879,7 @@ function updateIntFocusAvailability(){
     if(field) field.style.opacity = closeup ? '0.45' : '';
   });
 }
-['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntFocus','sIntPeople','sIntExtra'].forEach(id=>{
+['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntFocus','sIntPeople','sIntExtra','sAutoMat'].forEach(id=>{
   $(id).addEventListener('input', ()=>{
     updateIntFocusAvailability();
     if($('sPromptType').value === 'interior') hiddenPromptCache = buildInteriorPrompt();
@@ -981,6 +1042,13 @@ async function handleFile(file){
   // local preview
   const url = URL.createObjectURL(file);
   state.origPreviewURL = url;
+  // Read the surface colours once the preview has decoded, then rebuild the
+  // hidden prompt so the sentence is in it before Run is pressed.
+  $('previewImg').onload = () => {
+    state.autoMaterials = readMaterialSentence($('previewImg'));
+    if(state.autoMaterials) log('Material colours read from image: ' + state.autoMaterials, 'ok');
+    if($('sPromptType').value === 'interior') hiddenPromptCache = buildInteriorPrompt();
+  };
   $('previewImg').src = url;
   $('previewBox').style.display = 'block';
   showBeforeOnly(url);

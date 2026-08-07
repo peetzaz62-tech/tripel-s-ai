@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-06p">
+<link rel="stylesheet" href="styles.css?v=2026-08-08a">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -392,8 +392,12 @@
                 </select>
               </label>
               <label class="field">
+                <span><label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;"><input type="checkbox" id="sAutoMat" checked style="width:auto;margin:0;"> อ่านสีวัสดุจากภาพอัตโนมัติ</label></span>
+                <span class="fieldhint" style="margin-top:0;">อ่านสีฝ้า ผนัง พื้น จากภาพต้นฉบับแล้วใส่ให้เอง — กันฝ้าเทาเข้มกลายเป็นขาว ดูประโยคที่ได้ในช่อง log</span>
+              </label>
+              <label class="field">
                 <span>Additional notes — วัสดุ &amp; สี (optional)</span>
-                <textarea id="sIntExtra" placeholder="e.g. The ceiling is a dark charcoal grey, not white. The floor is a dark walnut parquet." style="min-height:50px;"></textarea>
+                <textarea id="sIntExtra" placeholder="เว้นว่างได้ ถ้าอยากแก้สีที่อ่านมาผิด ค่อยพิมพ์ทับตรงนี้" style="min-height:50px;"></textarea>
                 <span class="fieldhint">ฝ้าและพื้นสีเข้มมักกลายเป็นขาว — พิมพ์สีจริงลงไปตรงๆ จะล็อกไว้ได้</span>
               </label>
             </div>
@@ -722,6 +726,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-06p"></script>
+<script src="app.js?v=2026-08-08a"></script>
 </body>
 </html>
