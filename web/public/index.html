@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-06n">
+<link rel="stylesheet" href="styles.css?v=2026-08-06p">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -419,7 +419,7 @@
 <label class="field">
                 <span>ยึดต้นฉบับ — Denoise</span>
                 <input type="number" id="sDenoise" value="0.9" step="0.05" min="0.3" max="1">
-                <span class="fieldhint">ต่ำ = สีวัสดุตรงต้นฉบับกว่า แต่เหมือนภาพ render · 1 = ปล่อยอิสระเต็มที่ (แบบเดิม)</span>
+                <span class="fieldhint">ต่ำ = สีวัสดุตรงต้นฉบับกว่า แต่เหมือนภาพ render · 1 = ปล่อยอิสระเต็มที่ (แบบเดิม)<br>Turbo มีผลจริงแค่ 3 ช่วง — ≤0.80 · 0.85–0.93 · ≥0.95 (เท่ากับ 1) · อยากปรับละเอียดใช้ Quality</span>
               </label>
               <label class="field">
                 <span>Seed</span>
@@ -712,6 +712,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-06n"></script>
+<script src="app.js?v=2026-08-06p"></script>
 </body>
 </html>

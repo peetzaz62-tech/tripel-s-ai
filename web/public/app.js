@@ -67,8 +67,16 @@ const SAVE_IMAGE_NODE_ID_MAGNIFIC = "9";
 // make the model hold a dark deck dark — starting from the dark deck does it
 // with no sentence at all.
 //
-// Every 0.05 is its own result even on Turbo's 8 steps — checked by hashing the
-// renders, not by eyeballing file sizes.
+// Granularity: SplitSigmasDenoise cuts on step boundaries, so the setting is
+// quantised to 1/steps. On Turbo's 8 steps the whole slider collapses into
+// three bands, measured pixel-by-pixel on 1111.jpg:
+//
+//   <= 0.80          two steps skipped — tone survives, still looks like a render
+//   0.85 .. 0.93     one step skipped  — tone survives and it becomes a photograph
+//   >= 0.95          nothing skipped   — identical to denoise 1, the bug is back
+//
+// Values inside a band are pixel-identical (mean abs diff 0.000). Reach for
+// Quality's 20 steps when a value between bands is needed.
 function buildSSSPrompt(opts){
   const mode = opts.mode || 'turbo';
   const useLora = mode === 'turbo';
