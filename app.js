@@ -67,9 +67,8 @@ const SAVE_IMAGE_NODE_ID_MAGNIFIC = "9";
 // make the model hold a dark deck dark — starting from the dark deck does it
 // with no sentence at all.
 //
-// Note the granularity trap: SplitSigmasDenoise cuts on step boundaries, so at
-// 8 steps there are only eight settings and 0.7 and 0.8 land on the same one.
-// Use Quality (20 steps) when a value between them is needed.
+// Every 0.05 is its own result even on Turbo's 8 steps — checked by hashing the
+// renders, not by eyeballing file sizes.
 function buildSSSPrompt(opts){
   const mode = opts.mode || 'turbo';
   const useLora = mode === 'turbo';
