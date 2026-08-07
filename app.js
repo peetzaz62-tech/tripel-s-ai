@@ -739,7 +739,13 @@ function readExtParams(){
     time: $('sExtTime').value, clouds: $('sExtClouds').value, weather: $('sExtWeather').value,
     background: $('sExtBackground').value, view: $('sExtView').value,
     people: $('sExtPeople').value, peopleDesc: $('sExtPeopleDesc').value,
-    cars: $('sExtCars').value, focus: $('sExtFocus').value, extra: $('sExtExtra').value
+    cars: $('sExtCars').value, focus: $('sExtFocus').value,
+    // Same rule as interior: the generated text goes first so anything typed
+    // sits last and overrides it.
+    extra: [
+      ($('sAutoMatExt').checked && state.autoMaterials) ? state.autoMaterials : '',
+      $('sExtExtra').value.trim()
+    ].filter(Boolean).join(' ')
   };
 }
 function buildExteriorPrompt(){ return buildExteriorPromptP(readExtParams()); }
@@ -799,23 +805,52 @@ function sampleBand(data, w, y0, y1){
   return describeBand(med(R), med(G), med(B));
 }
 
-function readMaterialSentence(img){
+// Bands come from profiling a source in 5% slices rather than guessing. On the
+// exterior that profile is unambiguous: sky owns everything above 0.35 at a
+// flat 255, the building sits 0.45-0.70, the paving that keeps turning
+// terracotta is 0.74-0.90, and the very bottom is road, so it is left out.
+const BANDS = {
+  interior: [['ceiling', 0.00, 0.10], ['walls', 0.35, 0.60], ['floor', 0.80, 1.00]],
+  exterior: [['facade', 0.45, 0.70], ['ground', 0.74, 0.90]]
+};
+
+function readMaterialSentence(img, kind){
+  const bands = BANDS[kind];
+  if(!bands) return '';
   try{
     const W = 400, H = Math.max(1, Math.round(W * img.naturalHeight / img.naturalWidth));
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
-    c.getContext('2d').drawImage(img, 0, 0, W, H);
+    const g2 = c.getContext('2d');
+    g2.drawImage(img, 0, 0, W, H);
     // Throws on a tainted canvas — opening the page over file:// can do that.
-    const d = c.getContext('2d').getImageData(0, 0, W, H).data;
-    const ceiling = sampleBand(d, W, 0, Math.floor(H*0.10));
-    const walls   = sampleBand(d, W, Math.floor(H*0.35), Math.floor(H*0.60));
-    const floor   = sampleBand(d, W, Math.floor(H*0.80), H);
-    return `The ceiling is ${ceiling}, and it stays that dark rather than reading as white. `
-         + `The floor is ${floor}. The walls are ${walls}.`;
+    const d = g2.getImageData(0, 0, W, H).data;
+    const v = {};
+    for(const [name, y0, y1] of bands)
+      v[name] = sampleBand(d, W, Math.floor(H*y0), Math.floor(H*y1));
+    if(kind === 'interior')
+      return `The ceiling is ${v.ceiling}, and it stays that dark rather than reading as white. `
+           + `The floor is ${v.floor}. The walls are ${v.walls}.`;
+    return `The paved ground across the front of the building is ${v.ground}, and it stays that dark in full sun. `
+         + `The building's own walls and panels are ${v.facade}.`;
   }catch(e){
     log('Could not read material colours from the image (' + e.message + ') — carrying on without them.', 'warn');
     return '';
   }
+}
+
+// Which reading applies depends on the preset, so recompute whenever either the
+// image or the preset changes.
+function refreshAutoMaterials(){
+  const img = $('previewImg');
+  const type = $('sPromptType').value;
+  const kind = type === 'interior' ? 'interior' : (type === 'exterior' || type === 'semiOutdoor') ? 'exterior' : null;
+  if(!img.src || !img.naturalWidth || !kind){ state.autoMaterials = ''; return; }
+  const next = readMaterialSentence(img, kind);
+  // applyPromptType runs on every control change; only say something when the
+  // reading actually changed, or the log fills with the same line.
+  if(next && next !== state.autoMaterials) log('Material colours read from image: ' + next, 'ok');
+  state.autoMaterials = next;
 }
 
 let hiddenPromptCache = '';
@@ -824,6 +859,9 @@ const PROMPT_MASK = '🔒 Prompt generated and ready to use — hidden to protec
 function applyPromptType(){
   const type = $('sPromptType').value;
   updatePeopleDescVisibility();
+  // Which bands to read depends on the preset, so re-read before the prompt
+  // below is rebuilt — switching Interior/Exterior after upload must re-sample.
+  refreshAutoMaterials();
   if(type === 'exterior'){
     $('sExtControls').style.display = '';
     $('sIntControls').style.display = 'none';
@@ -862,7 +900,7 @@ function refreshExtPrompt(){
   if(type === 'exterior') hiddenPromptCache = buildExteriorPrompt();
   else if(type === 'semiOutdoor') hiddenPromptCache = buildSemiOutdoorPrompt();
 }
-['sExtTime','sExtClouds','sExtWeather','sExtBackground','sExtView','sExtPeople','sExtPeopleDesc','sExtCars','sExtFocus','sExtExtra'].forEach(id=>{
+['sExtTime','sExtClouds','sExtWeather','sExtBackground','sExtView','sExtPeople','sExtPeopleDesc','sExtCars','sExtFocus','sExtExtra','sAutoMatExt'].forEach(id=>{
   $(id).addEventListener('input', refreshExtPrompt);
 });
 // Close-up overrides three of the pickers: a real lens this close is forced
@@ -1044,11 +1082,7 @@ async function handleFile(file){
   state.origPreviewURL = url;
   // Read the surface colours once the preview has decoded, then rebuild the
   // hidden prompt so the sentence is in it before Run is pressed.
-  $('previewImg').onload = () => {
-    state.autoMaterials = readMaterialSentence($('previewImg'));
-    if(state.autoMaterials) log('Material colours read from image: ' + state.autoMaterials, 'ok');
-    if($('sPromptType').value === 'interior') hiddenPromptCache = buildInteriorPrompt();
-  };
+  $('previewImg').onload = () => applyPromptType();
   $('previewImg').src = url;
   $('previewBox').style.display = 'block';
   showBeforeOnly(url);

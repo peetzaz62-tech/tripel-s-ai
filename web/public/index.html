@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-08a">
+<link rel="stylesheet" href="styles.css?v=2026-08-08b">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -312,8 +312,12 @@
                 <span class="fieldhint" style="margin-top:0;">อ่านสีฝ้า ผนัง พื้น จากภาพต้นฉบับแล้วใส่ให้เอง — กันฝ้าเทาเข้มกลายเป็นขาว ดูประโยคที่ได้ในช่อง log</span>
               </label>
               <label class="field">
+                <span><label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;"><input type="checkbox" id="sAutoMatExt" checked style="width:auto;margin:0;"> อ่านสีวัสดุจากภาพอัตโนมัติ</label></span>
+                <span class="fieldhint" style="margin-top:0;">อ่านสีพื้นลานและผนังอาคารจากต้นฉบับ (ข้ามท้องฟ้า) — กันกระเบื้องเทาเข้มกลายเป็นไม้หรือส้ม</span>
+              </label>
+              <label class="field">
                 <span>Additional notes — วัสดุ &amp; สี (optional)</span>
-                <textarea id="sIntExtra" placeholder="เว้นว่างได้ ถ้าอยากแก้สีที่อ่านมาผิด ค่อยพิมพ์ทับตรงนี้" style="min-height:50px;"></textarea>
+                <textarea id="sExtExtra" placeholder="เว้นว่างได้ ถ้าอยากแก้สีที่อ่านมาผิด ค่อยพิมพ์ทับตรงนี้" style="min-height:50px;"></textarea>
                 <span class="fieldhint">พื้นผิวสีเข้มมักเพี้ยนเป็นสีอ่อนหรือเปลี่ยนวัสดุ — พิมพ์สีจริงลงไปตรงๆ จะล็อกไว้ได้</span>
               </label>
             </div>
@@ -422,8 +426,8 @@
               </label>
 <label class="field">
                 <span>ยึดต้นฉบับ — Denoise</span>
-                <input type="number" id="sDenoise" value="0.9" step="0.05" min="0.3" max="1">
-                <span class="fieldhint">ต่ำ = สีวัสดุตรงต้นฉบับกว่า แต่เหมือนภาพ render · 1 = ปล่อยอิสระเต็มที่ (แบบเดิม)<br>Turbo มีผลจริงแค่ 3 ช่วง — ≤0.80 · 0.85–0.93 · ≥0.95 (เท่ากับ 1) · อยากปรับละเอียดใช้ Quality</span>
+                <input type="number" id="sDenoise" value="1" step="0.05" min="0.3" max="1">
+                <span class="fieldhint">1 = สวยที่สุด ใช้ค่านี้ (สีวัสดุคุมด้วยตัวอ่านสีอัตโนมัติแทน) · ลดลงถ้าอยากยึดต้นฉบับมากขึ้น แลกกับความเป็นภาพถ่าย<br>Turbo มีผลจริงแค่ 3 ช่วง — ≤0.80 · 0.85–0.93 · ≥0.95 (เท่ากับ 1)</span>
               </label>
               <label class="field">
                 <span>Seed</span>
@@ -716,6 +720,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-08a"></script>
+<script src="app.js?v=2026-08-08b"></script>
 </body>
 </html>
