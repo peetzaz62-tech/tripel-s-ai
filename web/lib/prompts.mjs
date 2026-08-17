@@ -111,35 +111,49 @@ function extTimeParagraph(time){
     // whole section exists to remove — and it is the tested default now, so
     // that risk is exactly what must not come back.
     sunset: `Time of Day — Sunset: the sun has moved past its highest point but is still well up in the sky, throwing clearly directional shadows of moderate length rather than the long rakes of twilight. The light stays bright and clear and its colour is the same neutral daylight as midday — this reads as late day by the angle of the sun, not by any warming of the light, so nothing in the frame turns golden. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
-    // Golden hour is genuinely warm, so the amber stays — but confined to the
-    // faces the sun actually reaches, with shade and whites held neutral.
-    twilight: `Time of Day — Twilight: sun low on the horizon, long soft shadows, the light warmer than midday but still clean — a gentle amber on the surfaces it directly strikes, while shade stays cool and neutral and white surfaces never turn yellow. Building lights may glow softly. No harsh contrast or HDR grading.`,
-    night: `Time of Day — Night: the scene is lit by the building's own interior and exterior lights, glowing warm and casting realistic pools of light, with faint ambient moonlight keeping unlit areas readable. Away from those pools the night stays cool and neutral, not tinted amber. No invented external light sources.`
+    // Rewritten 2026-08-08 from a reference photo peetz sent: a deep blue sky
+    // sinking into a warm orange-and-pink band at the horizon, first stars
+    // showing in the blue above. The old text (reused from the pre-rename
+    // "evening" key, see the git history) only described light falling on the
+    // building and said nothing about the sky itself, which is the entire
+    // subject of that reference. The building must stay readable though — a
+    // real estate/archviz shot cannot go full silhouette the way a landscape
+    // photo can, so that constraint is stated explicitly.
+    twilight: `Time of Day — Twilight: the sun has just gone down and the sky itself carries the colour — a deep blue at the top of the frame sinking through dusk into a warm glowing band of orange and pink low on the horizon where the sun went down, with the first faint stars visible in the blue above. The building is lit by the last of that sky light plus its own switched-on lights, which glow warm and cast soft pools near the facade — forms stay readable, never falling into full silhouette. No lens flare, god rays, or HDR grading.`,
+    // "moonlight" named a moon into being — the usual failure — so this no
+    // longer says where the ambient night fill comes from, only that it
+    // exists. Fixed 2026-08-08 after peetz asked for a moonless night.
+    night: `Time of Day — Night: the scene is lit by the building's own interior and exterior lights, glowing warm and casting realistic pools of light, with a faint cool ambient glow keeping unlit areas readable rather than pure black. Away from those pools the night stays cool and neutral, not tinted amber. No invented external light sources.`
   };
   return map[time] || map.noon;
 }
 
+// The five night variants named "moon"/"moonlight" outright, and a named
+// thing appears — this is very likely why a moon disc kept showing up in
+// night renders nobody asked for. Fixed 2026-08-08: every ambient-glow phrase
+// stays, only the moon itself is gone. Stars are untouched — peetz asked for
+// no moon, not no stars.
 function extCloudsParagraph(clouds, time){
   const night = time === 'night';
   const map = {
     none: night
-      ? `Clouds: a clear night sky with visible stars and soft moonlight.`
+      ? `Clouds: a clear night sky with visible stars.`
       : `Clouds: a clear cloudless sky with a natural daylight gradient.`,
     thin: night
-      ? `Clouds: thin wispy clouds catching faint moonlight, stars visible between them.`
+      ? `Clouds: thin wispy clouds catching a faint ambient glow, stars visible between them.`
       : `Clouds: a few thin wispy semi-transparent clouds of varied size — never a flat repeated pattern.`,
     thick: night
-      ? `Clouds: drifting clouds partially veiling the moon, stars in the breaks.`
+      ? `Clouds: drifting clouds veiling parts of the sky, stars visible in the breaks.`
       : `Clouds: scattered cumulus clouds with real volume, soft-lit tops and gently shaded undersides — never a flat repeated pattern.`,
     overcast: night
-      ? `Clouds: heavy overcast hiding moon and stars, faint ambient glow only.`
+      ? `Clouds: heavy overcast hiding the stars, faint ambient glow only.`
       : `Clouds: a soft uniform overcast layer diffusing the light evenly.`,
 
     // Rain gets its own sky rather than borrowing "overcast", which is a bright
     // even white layer — too light to read as weather you would take an
     // umbrella for.
     rain: night
-      ? `Clouds: a heavy rain sky with moon and stars completely hidden, only the dim glow of distant city light on the cloud base.`
+      ? `Clouds: a heavy rain sky with the stars completely hidden, only the dim glow of distant city light on the cloud base.`
       : `Clouds: a heavy, low, rain-bearing sky — thick grey cloud with real depth and darker bellies, covering the frame from edge to edge with no break and no patch of blue anywhere. The daylight coming through it is dim and even.`
   };
   return map[clouds] || map.thin;
