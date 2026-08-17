@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-08c">
+<link rel="stylesheet" href="styles.css?v=2026-08-08d">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -223,10 +223,10 @@
             <label class="field">
               <span>Time of Day</span>
               <select id="sExtTime">
-                <option value="morning">Morning</option>
-                <option value="noon" selected>Noon</option>
-                <option value="afternoon">บ่าย — Afternoon (แดดเฉียง ไม่อมเหลือง)</option>
-                <option value="evening">Evening</option>
+                <option value="dawn">Dawn</option>
+                <option value="noon">Noon</option>
+                <option value="sunset" selected>Sunset (แดดเฉียง เงายาว ไม่อมเหลือง)</option>
+                <option value="twilight">Twilight (โทนอุ่น ไฟอาคารเริ่มติด)</option>
                 <option value="night">Night (building lights on)</option>
               </select>
             </label>
@@ -720,6 +720,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-08c"></script>
+<script src="app.js?v=2026-08-08d"></script>
 </body>
 </html>

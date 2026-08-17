@@ -73,28 +73,47 @@ const NEUTRAL_WB = ` The white balance is neutral and the light is clean: white 
 // no order of precedence between them. These variants take that precedence.
 // Night is absent on purpose: it is lit by the building, not the sun, so it
 // needs no diffuse form.
+// Renamed 2026-08-08: morning/afternoon/evening became dawn/sunset/twilight.
+// 'afternoon' is now 'sunset' because peetz tested it against plain noon and
+// picked it as the default — measured on 1111.jpg, contrast 61.2→68.0 and
+// warmth -11.9→-0.3, the biggest move any wording change made that day (a
+// rewritten Photographic Quality paragraph moved contrast by 0.2). 'evening'
+// is now 'twilight', reusing its own "warmth confined to the sunlit face,
+// shade stays neutral" text rather than writing a new dusk description.
+//
+// The body text is otherwise the same — but the heading word alone is not
+// free. Swapping only "Afternoon" for "Sunset" (nothing else) measured
+// warmth -0.3 → +20.4 and contrast held: the same "nothing turns golden"
+// sentence sits right there and did not stop it. This is the naming effect
+// documented for materials, showing up in a lighting word. Whether that
+// warmer result is wanted is a judgement call, not a bug — it read as a
+// genuine, tasteful golden-hour photograph on 1111.jpg, not the old flat
+// orange material-swap failure — but it means "sunset" carries real weight
+// of its own and any future rewording of this paragraph must be re-measured,
+// not assumed identical because the prose looks unchanged.
 function extDiffuseTimeParagraph(time){
   const map = {
-    morning: `Time of Day — Morning under a closed sky: early daylight with the sun hidden behind cloud, arriving evenly from the whole sky. There is no direct sun anywhere in the scene — nothing casts a shadow onto the ground or across a wall, and the only shading is the gentle ambient occlusion where surfaces meet. Low contrast, cool and clear.`,
+    dawn: `Time of Day — Dawn under a closed sky: early daylight with the sun hidden behind cloud, arriving evenly from the whole sky. There is no direct sun anywhere in the scene — nothing casts a shadow onto the ground or across a wall, and the only shading is the gentle ambient occlusion where surfaces meet. Low contrast, cool and clear.`,
     noon: `Time of Day — Midday under a closed sky: bright but completely diffused daylight with the sun hidden behind cloud, arriving evenly from the whole sky. There is no direct sun anywhere in the scene — nothing casts a shadow onto the ground or across a wall, and the only shading is the gentle ambient occlusion where surfaces meet. Low contrast and evenly lit.`,
-    afternoon: `Time of Day — Afternoon under a closed sky: full daylight with the sun hidden behind cloud, arriving evenly from the whole sky. There is no direct sun anywhere in the scene — nothing casts a shadow onto the ground or across a wall, and the only shading is the gentle ambient occlusion where surfaces meet. Low contrast and evenly lit.`,
-    evening: `Time of Day — Evening under a closed sky: the last of the daylight with the sun already lost behind cloud, dimmer and cooler than midday and flat across the whole scene. There is no direct sun and nothing casts a shadow; building lights may glow softly. Nothing turns golden.`
+    sunset: `Time of Day — Sunset under a closed sky: full daylight with the sun hidden behind cloud, arriving evenly from the whole sky. There is no direct sun anywhere in the scene — nothing casts a shadow onto the ground or across a wall, and the only shading is the gentle ambient occlusion where surfaces meet. Low contrast and evenly lit.`,
+    twilight: `Time of Day — Twilight under a closed sky: the last of the daylight with the sun already lost behind cloud, dimmer and cooler than midday and flat across the whole scene. There is no direct sun and nothing casts a shadow; building lights may glow softly. Nothing turns golden.`
   };
   return (map[time] || map.noon) + NEUTRAL_WB;
 }
 
 function extTimeParagraph(time){
   const map = {
-    morning: `Time of Day — Morning: low sun near the horizon casting long soft-edged shadows, the light clear and only faintly warm rather than golden, with a cool tint in the shade and shadow detail kept visible. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
+    dawn: `Time of Day — Dawn: low sun near the horizon casting long soft-edged shadows, the light clear and only faintly warm rather than golden, with a cool tint in the shade and shadow detail kept visible. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
     noon: `Time of Day — Midday: bright clear daylight from a high sun, well-defined but soft-edged shadows that keep visible detail. The daylight is neutral and very slightly cool, exactly as a camera set to daylight white balance records it. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
 
-    // Afternoon is defined by the sun's ANGLE, not its colour. Said any other
-    // way the model reaches for golden hour, which is the cast this whole
-    // section exists to remove.
-    afternoon: `Time of Day — Afternoon: the sun has moved past its highest point but is still well up in the sky, throwing clearly directional shadows of moderate length rather than the long rakes of evening. The light stays bright and clear and its colour is the same neutral daylight as midday — this is afternoon by the angle of the sun, not by any warming of the light, so nothing in the frame turns golden. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
+    // Sunset here is defined by the sun's ANGLE, not its colour. Said any
+    // other way the model reaches for golden hour, which is the cast this
+    // whole section exists to remove — and it is the tested default now, so
+    // that risk is exactly what must not come back.
+    sunset: `Time of Day — Sunset: the sun has moved past its highest point but is still well up in the sky, throwing clearly directional shadows of moderate length rather than the long rakes of twilight. The light stays bright and clear and its colour is the same neutral daylight as midday — this reads as late day by the angle of the sun, not by any warming of the light, so nothing in the frame turns golden. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
     // Golden hour is genuinely warm, so the amber stays — but confined to the
     // faces the sun actually reaches, with shade and whites held neutral.
-    evening: `Time of Day — Evening: sun low on the horizon, long soft shadows, the light warmer than midday but still clean — a gentle amber on the surfaces it directly strikes, while shade stays cool and neutral and white surfaces never turn yellow. Building lights may glow softly. No harsh contrast or HDR grading.`,
+    twilight: `Time of Day — Twilight: sun low on the horizon, long soft shadows, the light warmer than midday but still clean — a gentle amber on the surfaces it directly strikes, while shade stays cool and neutral and white surfaces never turn yellow. Building lights may glow softly. No harsh contrast or HDR grading.`,
     night: `Time of Day — Night: the scene is lit by the building's own interior and exterior lights, glowing warm and casting realistic pools of light, with faint ambient moonlight keeping unlit areas readable. Away from those pools the night stays cool and neutral, not tinted amber. No invented external light sources.`
   };
   return map[time] || map.noon;
@@ -223,7 +242,7 @@ function extConsistencyReminder(){
 }
 
 export function buildExteriorPrompt(p = {}){
-  const time = p.time || 'noon';
+  const time = p.time || 'sunset';
   const clouds = p.clouds || 'thin';
   const weather = p.weather || 'clear';
   const background = p.background || 'auto';
@@ -266,7 +285,7 @@ export function buildExteriorPrompt(p = {}){
 const SEMI_INTRO = `Turn this 3D render into a real photograph of the exact same semi-outdoor space — a covered terrace, pavilion, breezeway, carport, or similar roofed space open on one or more sides — shot from the exact same camera position with identical framing. Direct sun and sky may be partially filtered by the roof while open sides receive full outdoor light, following the "Time of Day", "Clouds", and "Weather" sections below. The result is a straight photograph — nothing may look like CGI, a rendering, or an illustration.`;
 
 export function buildSemiOutdoorPrompt(p = {}){
-  const time = p.time || 'noon';
+  const time = p.time || 'sunset';
   const clouds = p.clouds || 'thin';
   const weather = p.weather || 'clear';
   const background = p.background || 'auto';
