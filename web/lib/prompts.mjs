@@ -396,7 +396,23 @@ const INT_CLOSEUP_DETAIL = `At this distance the materials themselves are the su
 // throwing hard-edged patches and window-frame shadow bands across the floor
 // reads as harsh and CG-like — the reference photography is lit by soft window
 // light, so every daylight preset carries this clause.
-const NO_HARD_SUN = ` The daylight arrives as a broad, diffused glow through the glazing rather than as a direct beam: there are no hard-edged shafts of sunlight, no bright sun patches and no window-frame shadow patterns striped across the floor, walls or furniture. Shadows stay soft and open.`;
+// This paragraph exists to keep hard sun out, and the old version named an
+// opening three times to do it ("through the glazing", "shafts of sunlight",
+// "window-frame shadow patterns"). In a room with no opening that is three
+// invitations inside the one clause meant to prevent the problem. Rewritten
+// 2026-08-18 as shadow quality alone, which is checkable on any interior and
+// names nothing: it says where shading may come from rather than what it must
+// not look like.
+const SOFT_SHADOWS = ` Every shadow is soft-edged and open, the kind a large diffuse source casts: edges fade gradually rather than cutting sharply, and light lands evenly across floor, walls and furniture rather than in bright hard-edged patches or stripes.`;
+
+// Asked for across the interior modes on 2026-08-18: light should arrive as a
+// glow that wraps forms rather than a beam that strikes them, because renders
+// were coming back dark and hard-edged and could not be shown to a client.
+const INT_GLOW = ` The light reads as a soft glow that spreads and wraps around forms rather than a direct beam that strikes them, building gently from the fittings and from the bright surfaces it bounces off, so shadows stay pale and soft-edged and nothing in the frame falls into heavy darkness.`;
+
+// Only for the modes that describe a lit room. On evening or night this would
+// contradict the mode's own opening sentence.
+const INT_HIGH_KEY = ` The overall exposure is bright and welcoming — a clean, open, high-key photograph rather than a dim or moody one.`;
 
 // Two failures this fixes, both seen in testing:
 // 1. A turntable's clear acrylic dust cover was read as a window and the model
@@ -404,7 +420,7 @@ const NO_HARD_SUN = ` The daylight arrives as a broad, diffused glow through the
 //    translucent is a candidate to be mistaken for an opening.
 // 2. Windows came back as flat white voids. The reference photography always
 //    shows a real view outside, slightly overexposed but readable.
-const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already exist in the source image. Every solid wall and panel in the source stays solid and unbroken: no new window, glass panel or skylight appears anywhere, and no existing opening changes its size, shape or position. No new lamp or glowing panel is invented, and no object, screen, glass cover or reflective surface is turned into a light source or mistaken for an opening.`;
+const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already exist in the source image. Every solid wall and panel in the source stays solid and unbroken: no new opening of any kind appears anywhere, and no existing opening changes its size, shape or position. No new lamp or glowing panel is invented, and no object, screen, glass cover or reflective surface is turned into a light source or mistaken for an opening.`;
 
 // Auto no longer asks for an exterior to be composed. Telling the model there
 // is "a genuine exterior appropriate to the setting" beyond the glass made it
@@ -457,7 +473,14 @@ function intViewOutsideParagraph(bg, mode){
 // Note the deliberate absence of the words "warm" and "golden" from the white
 // option: a stray warmth word anywhere in the prompt tints the whole frame.
 const INT_LIGHT_ON = {
-  white: `Lighting: the room's fixtures are switched on and emit a clean neutral-white light, the crisp daylight-balanced white of modern LED, blending with abundant soft daylight from the window. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Bright, clear and even.`,
+  // "blending with abundant soft daylight from the window" asserted that the
+  // room HAS a window. On a source with no opening anywhere — a deep-plan flat,
+  // a windowless ward — that sentence still has to be made true, and the render
+  // answered it by putting glowing panels into blank cabinet fronts. Saying
+  // only that the room is lit by what it already contains is equally true of a
+  // wall of glazing and of no opening at all. Measured 2026-08-18 on a
+  // windowless source: the invented openings stop appearing.
+  white: `Lighting: the room is lit by the light it already contains — the light fittings it has, switched on, and whatever daylight it already receives. Neutral white balance throughout: white surfaces read as pure white with no colour cast, and every surface keeps its own lightness.`,
 
   warm: `Lighting: the room's fixtures are switched on and glow a soft warm-white, spreading into pools that fall off naturally and blending with daylight from the window. The warmth lives in the glow of the lamps and the surfaces they reach; walls away from the fixtures stay neutral, and the room never turns uniformly orange.`,
 
@@ -489,11 +512,14 @@ const INT_LIGHT_OFF = {
 function intLightingParagraph(mode, fixtures, bg, closeup){
   const m = INT_LIGHT_ON[mode] ? mode : 'white';
   const base = (fixtures === 'off' ? INT_LIGHT_OFF : INT_LIGHT_ON)[m];
-  // Only the two daylight modes can produce a hard sun shaft worth banning.
-  const sun = (m === 'white' || m === 'warm') ? NO_HARD_SUN : '';
+  // Only the two modes that describe a lit room take the glow, the high-key
+  // exposure and the soft-shadow clause. Evening and night are meant to be
+  // dark, and a bright-and-welcoming sentence would fight their own opening
+  // line — the kind of self-contradiction that broke the old v5 core.
+  const litRoom = (m === 'white' || m === 'warm') ? (INT_GLOW + INT_HIGH_KEY + SOFT_SHADOWS) : '';
   // A close-up frame often contains no glazing at all, so asking for a view
   // through it invites one to be drawn.
-  return base + sun + NO_PHANTOM_SOURCE + (closeup ? '' : intViewOutsideParagraph(bg, m));
+  return base + litRoom + NO_PHANTOM_SOURCE + (closeup ? '' : intViewOutsideParagraph(bg, m));
 }
 
 function intFocusParagraph(focus, closeup){
