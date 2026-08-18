@@ -645,11 +645,25 @@ const INT_LIGHT_ON = {
   // up — so those modes invent windows and a sun gradient in a room that has
   // neither. This text therefore never says window, daylight, sun or outside,
   // not even to forbid them. It states where the room IS instead ("deep inside
-  // the building"), which is a value the model can check the source against,
-  // and describes overhead light positively: even coverage, short shadows
-  // under objects, no falloff across the frame — the things that actually
-  // distinguish a ceiling-lit room from a daylit one.
-  indoor: `Lighting: the room sits deep inside the building and is lit entirely by the fittings shown in its own ceiling — the clean neutral-white of modern recessed LED panels and troffers, laid down in overlapping pools so the floor stays evenly bright from one end of the frame to the other. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Shadows are soft and short, sitting directly beneath objects the way they do under overhead lighting, and the brightness does not fall away toward any one side of the frame.`
+  // the building"), a value the model can check the source against.
+  //
+  // Revised the same day, twice, both times caught by rendering:
+  //
+  // 1. The first version ordered the floor "evenly bright from one end of the
+  //    frame to the other" and forbade brightness falling "toward any one
+  //    side". It worked — and produced a completely flat, lifeless frame,
+  //    because those clauses ban the pooling and falloff that make a
+  //    photograph. The measured left-to-right spread of 34 that looked like a
+  //    win WAS the flatness. Falloff is now asked for by DISTANCE (far end
+  //    deeper than near end), which reads as depth; a sideways gradient is
+  //    what would read as daylight, and simply isn't requested.
+  // 2. The second version said the room is lit by its "fittings", and a smoke
+  //    detector is a ceiling fitting — every detector in the ward came back as
+  //    a glowing dome. "Luminaires", plus naming what they physically are,
+  //    confines it to the things that actually emit. Describing the fixture
+  //    instead of the light source is the same move that saved the timber
+  //    louvre screen; see the comment on NO_PHANTOM_SOURCE.
+  indoor: `Lighting: the room sits deep inside the building and is lit entirely by the recessed linear and panel luminaires shown in its own ceiling, which read as genuine sources with clean bright faces and lay down overlapping pools of light with the gentle rise and fall that real overhead lighting has. Light falls off with distance, so the far end of the room settles a little deeper in tone than the near end and the space reads with real depth. The floor carries a soft satin sheen that picks up long gentle reflections of them. Neutral white balance throughout: white surfaces read as pure white with no colour cast, every surface keeps its own lightness, and ceiling, wall and floor stay clearly separated in tone. Shadows are soft and short, sitting directly beneath objects and giving them weight on the floor.`
 };
 
 // This was once a long clause listing nine kinds of fitting and everything an
@@ -676,7 +690,11 @@ const INT_LIGHT_OFF = {
 // none of those, naming them is exactly how they appear. This says the same
 // protective thing — nothing in frame becomes a light source — without ever
 // naming an opening.
-const INDOOR_NO_PHANTOM_SOURCE = ` The ceiling fittings already present in the source are the only sources of light in the frame: no new lamp, glowing panel or bright opening is invented anywhere, and no object, screen, monitor or reflective surface is turned into one. Every wall, panel and partition in the source stays solid and unbroken.`;
+// The "every other object fixed to the ceiling" sentence is what stopped the
+// smoke detectors glowing. Deliberately NOT a list of device types: an
+// enumerated preserve list is exactly what turned a tiled terrace into timber
+// decking, so this names the category by position rather than by product.
+const INDOOR_NO_PHANTOM_SOURCE = ` The luminaires already present in the source are the only things emitting light in the frame. Every other object fixed to the ceiling stays an ordinary unlit object, keeping its own casing and colour. No new lamp, glowing panel or bright opening is invented anywhere, and no object, screen, monitor or reflective surface is turned into a light source. Every wall, panel and partition in the source stays solid and unbroken.`;
 
 function intLightingParagraph(mode, fixtures, bg, closeup){
   const m = INT_LIGHT_ON[mode] ? mode : 'white';
