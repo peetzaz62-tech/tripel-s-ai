@@ -1100,6 +1100,25 @@ async function testConnection(){
 $('btnTestConn').addEventListener('click', testConnection);
 window.addEventListener('load', testConnection);
 
+// Show which build the browser is actually running. The value is read off
+// app.js's own ?v= query string rather than stored in a constant here, because
+// the question this answers is "did my refresh actually pick up the new file?"
+// — and a hand-kept constant can say yes while a cached script says otherwise.
+// Reading the tag that loaded this code cannot disagree with itself.
+(function showAppVersion(){
+  const el = $('appVersion');
+  if(!el) return;
+  const tag = document.currentScript || document.querySelector('script[src*="app.js"]');
+  const m = tag && /[?&]v=([^&"']+)/.exec(tag.getAttribute('src') || '');
+  if(m){
+    el.textContent = 'v' + decodeURIComponent(m[1]);
+  }else{
+    // No version on the tag at all — usually a local file opened directly.
+    el.textContent = 'v(dev)';
+    el.classList.add('stale');
+  }
+})();
+
 // workflow selection
 document.querySelectorAll('.wf-opt').forEach(el=>{
   el.addEventListener('click', ()=>{

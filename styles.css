@@ -125,6 +125,11 @@
 #view-app .conn .pip{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);}
 #view-app .conn.ok .pip{background:var(--accent);box-shadow:0 0 0 3px var(--accent-tint);}
 #view-app .conn.bad .pip{background:var(--brick);box-shadow:0 0 0 3px var(--brick-tint);}
+/* Reads its value from app.js's own ?v= query string, so what it shows is the
+   file the browser actually executed — not a number typed in beside it that
+   could drift. Selectable so the version can be copied into a bug report. */
+#view-app .appver{font-family:var(--mono);font-size:11px;letter-spacing:.3px;color:var(--ink-faint);padding:2px 7px;border:1px solid var(--line);border-radius:999px;white-space:nowrap;user-select:all;}
+#view-app .appver.stale{color:var(--brick);border-color:var(--brick);}
 #view-app /* ---------- nav / account cluster ---------- */
   .nav-right{display:flex;align-items:center;gap:12px;}
 #view-app .token-chip{display:flex;align-items:center;gap:6px;background:var(--paper-raised);border:1px solid var(--hair-strong);border-radius:20px;padding:6px 12px 6px 8px;font-family:var(--mono);font-size:11.5px;color:var(--ink);}
