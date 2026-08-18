@@ -489,8 +489,26 @@ const INT_LIGHT_ON = {
   //    confines it to the things that actually emit. Describing the fixture
   //    instead of the light source is the same move that saved the timber
   //    louvre screen; see the comment on NO_PHANTOM_SOURCE.
-  indoor: `Lighting: the room sits deep inside the building and is lit entirely by the recessed linear and panel luminaires shown in its own ceiling, which read as genuine sources with clean bright faces and lay down overlapping pools of light with the gentle rise and fall that real overhead lighting has. Light falls off with distance, so the far end of the room settles a little deeper in tone than the near end and the space reads with real depth. The floor carries a soft satin sheen that picks up long gentle reflections of them. Neutral white balance throughout: white surfaces read as pure white with no colour cast, every surface keeps its own lightness, and ceiling, wall and floor stay clearly separated in tone. Shadows are soft and short, sitting directly beneath objects and giving them weight on the floor.`
+  // 3. "Luminaires" stopped the detectors glowing but also left the real
+  //    recessed downlights dead — dull brown plates in a ceiling whose only
+  //    working lights were the long runs. peetz: the lights I modelled don't
+  //    come on, and the air-conditioner looks like the brightest thing up
+  //    there. So the fittings are now stated as switched ON first, and the
+  //    equipment that must stay dark is named separately in the guard rather
+  //    than swept up by a catch-all "every other object" clause.
+  indoor: `Lighting: the room sits deep inside the building and is lit entirely by the light fittings recessed into its own ceiling — every one of them switched on and glowing evenly across its face, the long linear runs and the small flush panels alike. Their glow lays down broad overlapping pools that keep the whole space generously bright, easing a little deeper in tone toward the far end so the room still reads with depth. The floor carries a soft satin sheen that picks up long gentle reflections of them. Neutral white balance throughout: white surfaces read as pure white with no colour cast, every surface keeps its own lightness, and ceiling, wall and floor stay clearly separated in tone.`
 };
+
+// Asked for across every interior mode on 2026-08-18: light should arrive as a
+// glow that wraps forms, not a beam that hits them, because the renders were
+// coming back dark and hard-edged — "มืดๆหลอนๆ ไม่สามารถนำไปขายงานได้".
+// Measured on the ward: whole-frame mean luminance 152 before, 172 after.
+const INT_GLOW = ` The light reads as a soft glow that spreads and wraps around forms rather than a direct beam that strikes them, building gently from the fittings and from the bright surfaces it bounces off, so shadows stay pale and soft-edged and nothing in the frame falls into heavy darkness.`;
+
+// The high-key half only goes on the modes that describe a lit room. Putting
+// "bright and welcoming, never dim" on evening or night would fight the mode's
+// own first sentence, which is the contradiction that broke the old v5 core.
+const INT_HIGH_KEY = ` The overall exposure is bright and welcoming — a clean, open, high-key photograph rather than a dim or moody one.`;
 
 // This was once a long clause listing nine kinds of fitting and everything an
 // unlit one must not do. Two same-seed A/Bs on 2026-07-27 showed the list
@@ -521,7 +539,7 @@ const INT_LIGHT_OFF = {
 // smoke detectors glowing. Deliberately NOT a list of device types: an
 // enumerated preserve list is exactly what turned a tiled terrace into timber
 // decking, so this names the category by position rather than by product.
-const INDOOR_NO_PHANTOM_SOURCE = ` The luminaires already present in the source are the only things emitting light in the frame. Every other object fixed to the ceiling stays an ordinary unlit object, keeping its own casing and colour. No new lamp, glowing panel or bright opening is invented anywhere, and no object, screen, monitor or reflective surface is turned into a light source. Every wall, panel and partition in the source stays solid and unbroken.`;
+const INDOOR_NO_PHANTOM_SOURCE = ` Light comes only from those ceiling light fittings. The air-conditioning cassettes, ventilation grilles, smoke detectors and sprinkler heads set into the same ceiling are unlit equipment that keeps its own casing and colour, and no object, screen, monitor or reflective surface becomes a light source. No new lamp, glowing panel or bright opening is invented anywhere, and every wall, panel and partition in the source stays solid and unbroken.`;
 
 function intLightingParagraph(mode, fixtures, bg, closeup){
   const m = INT_LIGHT_ON[mode] ? mode : 'white';
@@ -533,15 +551,18 @@ function intLightingParagraph(mode, fixtures, bg, closeup){
   if(m === 'indoor'){
     // No view paragraph either: naming anything beyond the room is what makes
     // an opening appear for it to be seen through.
-    return INT_LIGHT_ON.indoor + INDOOR_NO_PHANTOM_SOURCE;
+    return INT_LIGHT_ON.indoor + INT_GLOW + INT_HIGH_KEY + INDOOR_NO_PHANTOM_SOURCE;
   }
 
   const base = (fixtures === 'off' ? INT_LIGHT_OFF : INT_LIGHT_ON)[m];
   // Only the two daylight modes can produce a hard sun shaft worth banning.
   const sun = (m === 'white' || m === 'warm') ? NO_HARD_SUN : '';
+  // Evening and night are meant to be dark; they get the glow quality but not
+  // the high-key exposure, which would contradict their own opening sentence.
+  const key = (m === 'white' || m === 'warm') ? INT_HIGH_KEY : '';
   // A close-up frame often contains no glazing at all, so asking for a view
   // through it invites one to be drawn.
-  return base + sun + NO_PHANTOM_SOURCE + (closeup ? '' : intViewOutsideParagraph(bg, m));
+  return base + INT_GLOW + key + sun + NO_PHANTOM_SOURCE + (closeup ? '' : intViewOutsideParagraph(bg, m));
 }
 
 function intFocusParagraph(focus, closeup){
