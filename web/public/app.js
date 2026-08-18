@@ -637,19 +637,7 @@ const INT_LIGHT_ON = {
 
   evening: `Lighting: dusk outside the windows, the sky beyond fading to a cool deep blue while the room itself is lit from within by its own fixtures glowing warm. The contrast between the cool glazing and the warm interior is gentle and cinematic. Shadows are deep but stay open and detailed, never crushed to black.`,
 
-  night: `Lighting: night beyond the glazing, dark outside the glass, while the room's fixtures are switched on and glow warm. The room reads as a bright warm interior set against the darkness outside, the light spreading into pools that fall off naturally. Shadows are deep but stay open and detailed, never crushed to black.`,
-
-  // Added 2026-08-18 for a hospital ward: a deep-plan room with no window in
-  // frame at all. Every other mode above names "window", "daylight", "glazing"
-  // or "outside", and by the rule this file keeps proving, a named thing turns
-  // up — so those modes invent windows and a sun gradient in a room that has
-  // neither. This text therefore never says window, daylight, sun or outside,
-  // not even to forbid them. It states where the room IS instead ("deep inside
-  // the building"), which is a value the model can check the source against,
-  // and describes overhead light positively: even coverage, short shadows
-  // under objects, no falloff across the frame — the things that actually
-  // distinguish a ceiling-lit room from a daylit one.
-  indoor: `Lighting: the room sits deep inside the building and is lit entirely by the fittings shown in its own ceiling — the clean neutral-white of modern recessed LED panels and troffers, laid down in overlapping pools so the floor stays evenly bright from one end of the frame to the other. Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Shadows are soft and short, sitting directly beneath objects the way they do under overhead lighting, and the brightness does not fall away toward any one side of the frame.`
+  night: `Lighting: night beyond the glazing, dark outside the glass, while the room's fixtures are switched on and glow warm. The room reads as a bright warm interior set against the darkness outside, the light spreading into pools that fall off naturally. Shadows are deep but stay open and detailed, never crushed to black.`
 };
 
 // This was once a long clause listing nine kinds of fitting and everything an
@@ -671,26 +659,8 @@ const INT_LIGHT_OFF = {
   night: `Lighting: night. The only light is faint ambient night light entering through the glazing, distant city or garden light and a trace of moonlight, so the room reads as a dim, cool, quiet space. Forms stay readable in the low light with soft gradation rather than solid black.` + FIXTURES_OFF
 };
 
-// Companion guard for `indoor`. NO_PHANTOM_SOURCE cannot be reused here: it
-// spells out "window, glass panel or skylight", and in a room that contains
-// none of those, naming them is exactly how they appear. This says the same
-// protective thing — nothing in frame becomes a light source — without ever
-// naming an opening.
-const INDOOR_NO_PHANTOM_SOURCE = ` The ceiling fittings already present in the source are the only sources of light in the frame: no new lamp, glowing panel or bright opening is invented anywhere, and no object, screen, monitor or reflective surface is turned into one. Every wall, panel and partition in the source stays solid and unbroken.`;
-
 function intLightingParagraph(mode, fixtures, bg, closeup){
   const m = INT_LIGHT_ON[mode] ? mode : 'white';
-
-  // `indoor` describes a room whose only light IS its fittings, so the
-  // Artificial Lights switch has nothing left to mean — honouring "off" would
-  // ask for an unlit windowless room, i.e. a black frame. The mode wins and
-  // the UI says so.
-  if(m === 'indoor'){
-    // No view paragraph either: naming anything beyond the room is what makes
-    // an opening appear for it to be seen through.
-    return INT_LIGHT_ON.indoor + INDOOR_NO_PHANTOM_SOURCE;
-  }
-
   const base = (fixtures === 'off' ? INT_LIGHT_OFF : INT_LIGHT_ON)[m];
   // Only the two daylight modes can produce a hard sun shaft worth banning.
   const sun = (m === 'white' || m === 'warm') ? NO_HARD_SUN : '';
