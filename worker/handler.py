@@ -34,6 +34,12 @@ JOB_TIMEOUT_SECONDS = int(os.environ.get("COMFY_JOB_TIMEOUT", "600"))
 
 _comfy_process = None
 _models_linked = False
+# The container stays warm across jobs, so ComfyUI's own model cache does
+# too. Measured 2026-08-17 on the same box: a stale flux2 load left only
+# 743MB/12.8GB VRAM free for the next flux1 job, which partially offloaded to
+# system RAM and ran ~10x slower. Track the last UNET actually queued and
+# force an unload only when the next job needs a different one.
+_last_unet_name = None
 
 
 def inspect_volume():
@@ -129,7 +135,32 @@ def patch_workflow(workflow: dict, image_filename: str) -> dict:
     return workflow
 
 
+def free_comfyui_memory():
+    try:
+        requests.post(
+            f"{COMFYUI_URL}/free",
+            json={"unload_models": True, "free_memory": True},
+            timeout=30,
+        )
+    except requests.exceptions.RequestException:
+        pass  # best effort — a failed free just means a slower load, not a broken run
+
+
+def detect_unet_name(workflow: dict):
+    for node in workflow.values():
+        if node.get("class_type") == "UNETLoader":
+            return node.get("inputs", {}).get("unet_name")
+    return None
+
+
 def queue_prompt(workflow: dict) -> str:
+    global _last_unet_name
+    unet_name = detect_unet_name(workflow)
+    if unet_name and _last_unet_name and unet_name != _last_unet_name:
+        free_comfyui_memory()
+    if unet_name:
+        _last_unet_name = unet_name
+
     resp = requests.post(
         f"{COMFYUI_URL}/prompt",
         json={"prompt": workflow, "client_id": str(uuid.uuid4())},

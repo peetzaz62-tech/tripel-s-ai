@@ -10,9 +10,25 @@ function showView(name){
 // ===================== APP SCRIPT =====================
 
 // ---------------------------------------------------------------------------
-// API-format prompt template for "Magnific Fast" (reconstructed from the
-// workflow JSON: LoadImage -> UltimateSDUpscale(4x-UltraSharp + Flux refine)
-// -> SaveImage). Node ids match the original graph.
+// API-format prompt template for "Magnific Fast":
+// LoadImage -> ImageScaleBy(lanczos) -> UltimateSDUpscaleNoUpscale -> SaveImage.
+//
+// There is deliberately NO ESRGAN model here any more. Measured 2026-08-18 on a
+// real 3904x2112 SSS exterior, comparing native-resolution crops region by
+// region: essentially all of the grain people complained about was created by
+// the ESRGAN, which turns the source's fine pixel-level noise into larger
+// blotchy mottle. The diffusion pass adds none of it — it slightly reduces it —
+// and steps/denoise are irrelevant (20 vs 60 steps moved grain by 0.004).
+//
+// Replacing the ESRGAN with a plain lanczos resize cuts grain hard on every
+// flat man-made surface, which is most of an archviz frame:
+//   window frame  3.08 -> 0.87   balcony glass 2.84 -> 0.80
+//   concrete slab 2.22 -> 0.74   block wall    2.18 -> 0.73
+//   paving block  2.12 -> 1.23   road asphalt  1.19 -> 0.58
+// Edge sharpness costs 10-19% there. The one real loss is grass, which needs
+// the high-frequency detail the ESRGAN invents (sharp 127 -> 105, blades blur
+// together); peetz chose this tradeoff knowingly on 2026-08-18 because flat
+// surfaces dominate these frames.
 // ---------------------------------------------------------------------------
 function buildMagnificPrompt(opts){
   return {
@@ -20,11 +36,13 @@ function buildMagnificPrompt(opts){
     "2": { class_type:"UNETLoader", inputs:{ unet_name:"flux1-dev-fp8.safetensors", weight_dtype:"default" } },
     "3": { class_type:"DualCLIPLoader", inputs:{ clip_name1:"t5xxl_fp8_e4m3fn.safetensors", clip_name2:"clip_l.safetensors", type:"flux", device:"default" } },
     "4": { class_type:"VAELoader", inputs:{ vae_name:"ae.safetensors" } },
-    "5": { class_type:"UpscaleModelLoader", inputs:{ model_name:"4x-UltraSharp.pth" } },
     "6": { class_type:"CLIPTextEncode", inputs:{ text: opts.prompt || "", clip:["3",0] } },
     "7": { class_type:"FluxGuidance", inputs:{ conditioning:["6",0], guidance:3.5 } },
-    "8": { class_type:"UltimateSDUpscale", inputs:{
-        image:["1",0], model:["2",0], positive:["7",0], negative:["7",0], vae:["4",0], upscale_model:["5",0],
+    // Resize first, then refine the already-sized image tile by tile. scale_by
+    // takes the user's Upscale By directly, so no target dimensions to compute.
+    "5": { class_type:"ImageScaleBy", inputs:{ image:["1",0], upscale_method:"lanczos", scale_by: opts.upscaleBy } },
+    "8": { class_type:"UltimateSDUpscaleNoUpscale", inputs:{
+        upscaled_image:["5",0], model:["2",0], positive:["7",0], negative:["7",0], vae:["4",0],
         // CFG is pinned to 1 and is not a user control. Node "8" wires negative
         // to the same conditioning as positive, so out = neg + cfg*(pos-neg)
         // = neg at every scale — cfg cannot change this image. ComfyUI only
@@ -32,7 +50,7 @@ function buildMagnificPrompt(opts){
         // higher value paid for a second forward pass and threw it away.
         // Measured 2026-08-06 on one 2MP source: cfg 8 = 505s, cfg 1 = 233s,
         // and the difference image between the two is flat black.
-        upscale_by: opts.upscaleBy, seed: opts.seed, steps: opts.steps, cfg: 1,
+        seed: opts.seed, steps: opts.steps, cfg: 1,
         sampler_name:"euler", scheduler:"simple", denoise: opts.denoise,
         mode_type:"Linear", tile_width:1024, tile_height:1024, mask_blur:8, tile_padding:32,
         seam_fix_mode:"None", seam_fix_denoise:1, seam_fix_width:64, seam_fix_mask_blur:8, seam_fix_padding:16,
@@ -121,7 +139,7 @@ function buildSSSPrompt(opts){
 const SAVE_IMAGE_NODE_ID_SSS = "9";
 
 // ---------------------------------------------------------------------------
-let state = { workflow:"magnific", uploadedName:null, origPreviewURL:null, connected:false, clientId: crypto.randomUUID(), autoMaterials:"" };
+let state = { workflow:"magnific", uploadedName:null, origPreviewURL:null, connected:false, clientId: crypto.randomUUID(), autoMaterials:"", lastModelKind:null };
 
 const $ = id => document.getElementById(id);
 const serverUrlEl = $('serverUrl');
@@ -1200,6 +1218,25 @@ async function runWorkflow(){
     prompt = buildMagnificPrompt(opts);
     saveImageNodeId = SAVE_IMAGE_NODE_ID_MAGNIFIC;
   }
+
+  // The Magnific graph loads flux1-dev-fp8; SSS/People load flux2_dev_fp8mixed.
+  // ComfyUI's own eviction didn't reliably swap these on the shared GPU box —
+  // measured 2026-08-17: a stale flux2 load left only 743MB/12.8GB VRAM free,
+  // so the flux1 load partially offloaded to system RAM and took 10x longer
+  // than normal. Forcing an unload only on an actual model-family switch (not
+  // on repeat runs of the same workflow) avoids paying that reload cost when
+  // it isn't needed.
+  const modelKind = state.workflow === 'magnific' ? 'flux1' : 'flux2';
+  if(state.lastModelKind && state.lastModelKind !== modelKind){
+    log('Switching model family (' + state.lastModelKind + ' -> ' + modelKind + '), freeing GPU memory first...');
+    try{
+      await fetch(baseUrl() + '/free', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ unload_models:true, free_memory:true })
+      });
+    }catch(e){ /* best effort — a failed free just means a slower load, not a broken run */ }
+  }
+  state.lastModelKind = modelKind;
 
   log('Sending request to ComfyUI...');
   let promptId;

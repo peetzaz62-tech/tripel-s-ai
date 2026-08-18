@@ -9,16 +9,18 @@ export function buildMagnificGraph(opts) {
     "2": { class_type: "UNETLoader", inputs: { unet_name: "flux1-dev-fp8.safetensors", weight_dtype: "default" } },
     "3": { class_type: "DualCLIPLoader", inputs: { clip_name1: "t5xxl_fp8_e4m3fn.safetensors", clip_name2: "clip_l.safetensors", type: "flux", device: "default" } },
     "4": { class_type: "VAELoader", inputs: { vae_name: "ae.safetensors" } },
-    "5": { class_type: "UpscaleModelLoader", inputs: { model_name: "4x-UltraSharp.pth" } },
     "6": { class_type: "CLIPTextEncode", inputs: { text: opts.prompt || "", clip: ["3", 0] } },
     "7": { class_type: "FluxGuidance", inputs: { conditioning: ["6", 0], guidance: 3.5 } },
-    "8": { class_type: "UltimateSDUpscale", inputs: {
-      image: ["1", 0], model: ["2", 0], positive: ["7", 0], negative: ["7", 0], vae: ["4", 0], upscale_model: ["5", 0],
+    // No ESRGAN: it was the source of the grain, not the diffusion pass. See
+    // app.js for the per-material measurements behind dropping it (2026-08-18).
+    "5": { class_type: "ImageScaleBy", inputs: { image: ["1", 0], upscale_method: "lanczos", scale_by: opts.upscaleBy } },
+    "8": { class_type: "UltimateSDUpscaleNoUpscale", inputs: {
+      upscaled_image: ["5", 0], model: ["2", 0], positive: ["7", 0], negative: ["7", 0], vae: ["4", 0],
       // CFG is pinned to 1 and is not a user control — see app.js for the
       // measurement. negative is wired to the same node as positive, so cfg
       // cannot alter the image, and only cfg 1.0 lets ComfyUI skip the uncond
       // pass. cfg 8 = 505s, cfg 1 = 233s, difference image flat black.
-      upscale_by: opts.upscaleBy, seed: opts.seed, steps: opts.steps, cfg: 1,
+      seed: opts.seed, steps: opts.steps, cfg: 1,
       sampler_name: "euler", scheduler: "simple", denoise: opts.denoise,
       mode_type: "Linear", tile_width: 1024, tile_height: 1024, mask_blur: 8, tile_padding: 32,
       seam_fix_mode: "None", seam_fix_denoise: 1, seam_fix_width: 64, seam_fix_mask_blur: 8, seam_fix_padding: 16,
