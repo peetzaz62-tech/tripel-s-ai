@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-18a">
+<link rel="stylesheet" href="styles.css?v=2026-08-18b">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -341,6 +341,7 @@
                 <option value="warm">แสงอุ่น — Warm light</option>
                 <option value="evening">แสงช่วงเย็น — Evening</option>
                 <option value="night">กลางคืน — Night</option>
+                <option value="indoor">ในอาคารล้วน — Indoor only (ไฟเพดานล้วน ไม่มีแสงภายนอก)</option>
               </select>
             </label>
           </div>
@@ -356,6 +357,7 @@
                     <option value="off">ปิด — Off</option>
                   </select>
                 </label>
+                <div class="hint">โหมด Indoor only ไม่สนใจสวิตช์นี้ — ตัวโหมดคือไฟประดิษฐ์ล้วนอยู่แล้ว และช่อง View ก็ไม่ถูกใช้</div>
                 <label class="field">
                   <span>Focus Mode</span>
                   <select id="sIntFocus">
@@ -721,6 +723,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-18a"></script>
+<script src="app.js?v=2026-08-18b"></script>
 </body>
 </html>
