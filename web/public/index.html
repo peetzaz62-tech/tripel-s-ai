@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-19l">
+<link rel="stylesheet" href="styles.css?v=2026-08-19n">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -512,12 +512,8 @@
 
       <div class="card" id="paramsCardSketch" style="display:none;">
         <div class="card-head"><h2>03 · Parameters · SSS Sketch to Add</h2><span class="plate-no">PL.03</span></div>
-        <div class="sk-note">อัปโหลดภาพที่ <b>เรนเดอร์เสร็จแล้ว</b> · ลากวาดคลุมพื้นที่ที่ต้องการทางขวา แล้วพิมพ์ว่าอยากให้เกิดอะไรตรงนั้น<br>สิ่งที่ขอจะเกิด<b>เฉพาะในพื้นที่ที่วาด</b> — ลากให้ครอบทั้งตัว ตั้งแต่ยอดถึงจุดที่แตะพื้น<br>ยิงรอบเดียวจบ · อยากได้สองอย่างคนละที่ ให้รันสองรอบ</div>
-        <label class="field">
-          <span>อยากให้เกิดอะไรตรงที่วาด <span class="cnt" id="skStrokeCount" style="float:right;font-family:var(--mono);font-size:10px;color:var(--ink-faint);">ยังไม่ได้วาด</span></span>
-          <textarea id="skWhat" placeholder="เช่น ต้นไม้ใหญ่ใบหนา ลำต้นเอียงไปทางซ้าย&#10;a parked car&#10;คนสองคนยืนคุยกัน&#10;โคมไฟติดผนัง เปิดอยู่" style="min-height:64px;"></textarea>
-          <span class="fieldhint">พิมพ์เป็นภาษาอังกฤษหรือไทยก็ได้ · ข้อความจะถูกส่งไปตรงๆ ไม่มีการเขียนใหม่ · ระบบเติมให้แค่ 2 ส่วน คือ "ห้ามแตะส่วนอื่นของภาพ" กับ "รับแสงและทอดเงาตามภาพเดิม"</span>
-        </label>
+        <div class="sk-note">อัปโหลดภาพที่ <b>เรนเดอร์เสร็จแล้ว</b> · เลือกชนิดจากแถบด้านขวา แล้วลากวาดทับตำแหน่งที่ต้องการ<br>สิ่งที่วาดจะเกิดได้<b>เฉพาะในพื้นที่ที่วาดเท่านั้น</b> — ลากคลุมตั้งแต่ยอดลงมาถึงจุดที่แตะพื้น ถ้าลากแค่ทรงพุ่ม ก็จะได้แค่ทรงพุ่มลอยอยู่<br>เงาปล่อยให้ AI คิดเอง ไม่ต้องวาด<br>แต่ละชนิดจะถูกเจนเป็นรอบของตัวเอง ต่อกันไปทีละรอบ — วาดหลายชนิดจะใช้เวลาเป็นเท่าตัว</div>
+        <div id="skPassList"></div>
 
         <details class="optgroup">
           <summary>Render settings<span class="og-sign"></span></summary>
@@ -588,7 +584,7 @@
       </div>
       <div class="sketch-stage" id="sketchStage" style="display:none;">
         <div class="sk-toolbar">
-          <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.8px;">ลากคลุมพื้นที่ที่ต้องการ</span>
+          <div id="skChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
           <div class="sk-tools">
             <label class="sk-size">Brush<input type="range" id="skBrush" min="2" max="30" step="1" value="10"></label>
             <button class="ghost" id="skUndo">Undo</button>
@@ -806,6 +802,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-19l"></script>
+<script src="app.js?v=2026-08-19n"></script>
 </body>
 </html>

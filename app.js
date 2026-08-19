@@ -1200,39 +1200,112 @@ function refreshPeoplePrompt(){
 refreshPeoplePrompt();
 
 // ---------------------------------------------------------------------------
-// SSS Sketch to Add — the mask says where, you say what.
+// SSS Sketch to Add — the mask says where, the prompt says what.
 //
-// There was a table of element types here, with a sentence apiece, a pass
-// order, a plural rule and a canopy/trunk split. Every constraint the mode ran
-// into came out of that table rather than out of masking: the ready-made
-// sentence asserted a shape ("a single upright stem") and straightened whatever
-// was drawn, the stroke count forced a plural and turned one forked tree into
-// two, and the pass order existed only to paper over the split. peetz called
-// it: drop the table. Draw the area, write what belongs there, one pass.
+// The whole point of the mask is that it carries the position, so the text
+// never has to. Every earlier attempt at "put a thing here" failed on the same
+// rule (see the interior lighting work): naming a thing in a prompt makes it
+// appear everywhere, and naming a colour to mark it paints the frame that
+// colour. With a mask deciding where, the sentence only has to describe what,
+// and that failure mode disappears rather than being worked around.
 //
-// What stays is the part that was actually proven — the opening paragraph from
-// Add People, which is what stops the rest of the frame moving, and the
-// integration clause, which is what ties the new thing to the light already in
-// the picture. Between them goes whatever was typed, untouched.
+// One pass per element type, chained: pass two edits pass one's output. Types
+// are not merged into a single pass because one sentence asking for trees and
+// cars puts trees in the car mask and cars in the tree mask.
+// Canopy and trunk are separate types, peetz's idea, because one sentence
+// covering both is what left trees floating. A stroke round the canopy and a
+// thin one down to the ground share the mask of a single "tree" pass, so both
+// regions get "a real tree standing on the ground with a trunk, a branching
+// structure and a full leafy canopy" — which the narrow lower strip can satisfy
+// by continuing the road behind it as easily as by growing a trunk, and did.
+// Split apart, the lower strip gets a sentence about a trunk meeting the ground
+// and nothing else. Whole "tree" stays for anything small or far enough away to
+// draw in one blob.
+//
+// `order` is the pass order, not the draw order: the canopy is rendered first
+// so that when the trunk pass runs, the canopy is already in the frame for the
+// trunk to grow up and meet.
+const SK_TYPES = [
+  { id:'tree',   label:'ต้นไม้',   color:'#3FA34D', order:1 },
+  { id:'canopy', label:'พุ่มใบ',   color:'#6FBF4A', order:1 },
+  { id:'trunk',  label:'ลำต้น',    color:'#8B5E34', order:2 },
+  { id:'rock',   label:'หิน',      color:'#8A8F98', order:1 },
+  { id:'people', label:'คน',       color:'#E0632F', order:3 },
+  { id:'car',    label:'รถ',       color:'#2D6CDF', order:3 },
+  { id:'animal', label:'สัตว์',    color:'#9B59B6', order:3 },
+  { id:'lamp',   label:'ดวงโคม',   color:'#E5B700', order:4 },
+  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5', order:4 }
+];
+const SK_TYPE_BY_ID = Object.fromEntries(SK_TYPES.map(t => [t.id, t]));
+
+// Same opening as Add People, which is already proven for "the input is a
+// finished photograph, add something to it".
 const SK_BASE = `This is a finished photograph. Leave it exactly as it is — the same place, the same objects in the same positions, the same materials, the same colours, the same lighting and the same camera. Nothing already in the frame is moved, replaced, restyled or removed.`;
 
-// Never states a direction or a softness, only that both match what is already
+// The clause that answers "ผสาน แสง เงา mood ให้เข้ากับงานต้นฉบับ". It never
+// states a direction or a softness, it states that both match what is already
 // there — so it reads the source instead of being told what the source is.
-const SK_DAYLIT = ` It takes the exact shape and extent of what was drawn. It is lit by the light already in the frame, catching that light from the same direction as everything around it, and it casts its own shadow onto the ground in the same direction and with the same softness as the shadows already there.`;
+const SK_DAYLIT = ` It is lit by the light already in the frame, catching that light from the same direction as everything around it, and it casts its own shadow onto the ground in the same direction and with the same softness as the shadows already there.`;
+const SK_DAYLIT_PL = ` They are lit by the light already in the frame, catching that light from the same direction as everything around them, and they cast their own shadows onto the ground in the same direction and with the same softness as the shadows already there.`;
+
+// Light sources need the opposite clause: they give light rather than take it.
+const SK_EMIT = ` The light it gives off is the same colour temperature as the light already in the picture. Its glow spreads onto the surfaces immediately around it and fades away gradually; nothing further away in the frame changes exposure.`;
+
+const SK_WHAT = {
+  tree: n => n === 1
+    ? `The only change is that a tree now grows in it: a real tree standing on the ground with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around it.`
+    : `The only change is that trees now grow in it: real trees standing on the ground, each with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around them.`,
+  // Says nothing about a trunk or about the ground. This region is the crown
+  // and only the crown; whatever holds it up is the trunk pass's problem, and
+  // mentioning it here is what let foliage wander down the trunk's strip.
+  canopy: n => n === 1
+    ? `The only change is that the leafy crown of a tree now fills it: dense foliage carried on spreading branches, thinning to open sky at its edges, at a believable size for the space around it.`
+    : `The only change is that the leafy crowns of trees now fill it: dense foliage carried on spreading branches, thinning to open sky at their edges, at a believable size for the space around them.`,
+  // The two clauses that matter: it reaches the ground at the bottom, and it
+  // reaches the foliage at the top. Both ends are named because both ends are
+  // where the previous attempts stopped short.
+  trunk: n => n === 1
+    ? `The only change is that the trunk of a tree now rises through it: real bark on a single upright stem, standing on the ground at its foot where it meets the surface it grows out of, and carrying its branches up into the foliage above, at a believable thickness for its height.`
+    : `The only change is that the trunks of trees now rise through it: real bark on upright stems, each standing on the ground at its foot where it meets the surface it grows out of, and carrying its branches up into the foliage above, at a believable thickness for its height.`,
+  rock: n => n === 1
+    ? `The only change is that a natural rock now rests on the ground: weathered stone sitting where it lies, at a believable size for the space around it.`
+    : `The only change is that natural rocks now rest on the ground: weathered stone sitting where it lies, at a believable size for the space around them.`,
+  // Wording lifted from Add People, which was tuned over sixteen renders.
+  people: n => n === 1
+    ? `The only change is that a person is now present in it, at rest — seated if the picture already contains seating, otherwise standing — sharp and still, correctly scaled to the space and secondary to the place itself.`
+    : `The only change is that people are now present in it, at rest — seated if the picture already contains seating, otherwise standing — sharp and still, correctly scaled to the space and secondary to the place itself.`,
+  car: n => n === 1
+    ? `The only change is that a car now stands in it: an ordinary everyday road car, parked on the ground, correctly scaled to the space.`
+    : `The only change is that cars now stand in it: ordinary everyday road cars, parked on the ground, correctly scaled to the space.`,
+  animal: n => n === 1
+    ? `The only change is that an animal is now present in it: an ordinary animal that belongs in a place like this, standing on the ground, correctly scaled to the space.`
+    : `The only change is that animals are now present in it: ordinary animals that belong in a place like this, standing on the ground, correctly scaled to the space.`,
+  // "of the kind this place already uses" is the conditional form again: it
+  // makes the model read the room rather than invent a fitting for it.
+  lamp: n => n === 1
+    ? `The only change is that a light fitting is now mounted there and switched on: a fitting of the kind this place already uses, giving off light.`
+    : `The only change is that light fittings are now mounted there and switched on: fittings of the kind this place already uses, giving off light.`,
+  hidden: () => `The only change is that concealed lighting is now switched on there: the fitting itself stays completely out of sight, and only the light it throws across the surface is visible — an even wash, brightest closest to where it is concealed, fading away smoothly.`
+};
+const SK_EMITTING = { lamp:1, hidden:1 };
 
 function buildSketchPromptP(p = {}){
-  const what = String(p.what || '').trim();
-  if(!what) return '';
-  // Typed text is spliced in as its own clause rather than rewritten, so what
-  // was asked for is what is sent.
-  return SK_BASE + ` The only change is that ${what} is now present in it.` + SK_DAYLIT;
+  const type = SK_WHAT[p.type] ? p.type : 'tree';
+  const count = Math.max(1, Math.round(Number(p.count) || 1));
+  const tail = SK_EMITTING[type] ? SK_EMIT : (count === 1 ? SK_DAYLIT : SK_DAYLIT_PL);
+  const desc = String(p.desc || '').trim();
+  // Free text is appended rather than spliced in, so the wording that was
+  // actually rendered stays byte-for-byte intact.
+  const parts = [SK_BASE + ' ' + SK_WHAT[type](count) + tail];
+  if(desc) parts.push(`Additional Instructions:\n${desc}`);
+  return parts.join('\n\n');
 }
+
 // ---- drawing surface -------------------------------------------------------
 // Strokes are stored in normalised 0..1 coordinates, so the same list redraws
 // correctly at preview scale and exports correctly at mask scale.
-const SK = { strokes: [], cur: null, hover: null, stage: 'sketch' };
-// One colour: there is only one kind of stroke now.
-const SK_INK = '#3FA34D';
+const SK = { strokes: [], cur: null, hover: null, type: SK_TYPES[0].id, stage: 'sketch' };
+const SK_DESC = {};
 
 function skSetImage(url){
   SK.strokes = []; SK.cur = null;
@@ -1273,7 +1346,7 @@ function skPaint(ctx, strokes, W, H, colour, extra, dy){
   const pad = extra || 0, oy = dy || 0;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for(const st of strokes){
-    ctx.strokeStyle = colour || SK_INK;
+    ctx.strokeStyle = colour || SK_TYPE_BY_ID[st.type].color;
     ctx.lineWidth = Math.max(2, st.size / 100 * short + 2*pad);
     ctx.beginPath();
     st.pts.forEach((p, i) => i ? ctx.lineTo(p[0]*W, p[1]*H + oy) : ctx.moveTo(p[0]*W, p[1]*H + oy));
@@ -1334,7 +1407,7 @@ function skCursor(ctx, W, H){
   // dark asphalt without knowing which it is over.
   ctx.lineWidth = 3; ctx.strokeStyle = '#00000088';
   ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2); ctx.stroke();
-  ctx.lineWidth = 1.4; ctx.strokeStyle = SK_INK;
+  ctx.lineWidth = 1.4; ctx.strokeStyle = SK_TYPE_BY_ID[SK.type].color;
   ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2); ctx.stroke();
   ctx.restore();
 }
@@ -1368,27 +1441,87 @@ function skWorkSize(w, h, megapixels){
   return [best.w, best.h];
 }
 
-function skMaskBlob(W, H){
+function skMaskBlob(type, W, H){
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  // Every stroke, one mask, one pass. The thing goes where the strokes are, and
+  const mine = SK.strokes.filter(s => s.type === type);
+  // The mask is exactly what was drawn: the thing goes where the stroke is, and
   // its shadow is left to the model, the same as every other shadow in the frame.
-  skPaint(ctx, SK.strokes, W, H, '#fff');
+  skPaint(ctx, mine, W, H, '#fff');
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
 
+// Passes in the order the types were first drawn, so the list on screen and the
+// order they render in are the same thing.
+// Ordered by the type's own pass order first — a trunk needs the canopy already
+// in the frame to grow up and meet — then by the order the types were drawn, so
+// anything the table treats as equal still renders in the order it was sketched.
+function skPasses(){
+  const drawn = [], count = {};
+  for(const s of SK.strokes){
+    if(!count[s.type]){ drawn.push(s.type); count[s.type] = 0; }
+    count[s.type]++;
+  }
+  return drawn
+    .map((t, i) => ({ type: t, count: count[t], order: SK_TYPE_BY_ID[t].order, seq: i }))
+    .sort((a, b) => (a.order - b.order) || (a.seq - b.seq));
+}
+
 function skRefreshPrompt(){
-  $('skPrompt').value = buildSketchPromptP({ what: $('skWhat').value });
+  const p = skPasses()[0];
+  $('skPrompt').value = p ? buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type] }) : '';
 }
 
 function skRefreshUI(){
-  const n = SK.strokes.length;
-  $('skStrokeCount').textContent = n ? n + ' เส้น' : 'ยังไม่ได้วาด';
+  const counts = {};
+  SK.strokes.forEach(s => counts[s.type] = (counts[s.type] || 0) + 1);
+
+  const chips = $('skChips');
+  chips.innerHTML = '';
+  SK_TYPES.forEach(t => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sk-chip' + (SK.type === t.id ? ' on' : '');
+    b.innerHTML = '<span class="sw" style="background:' + t.color + '"></span><span>' + t.label + '</span>'
+      + (counts[t.id] ? '<span class="n">' + counts[t.id] + '</span>' : '');
+    b.addEventListener('click', () => { SK.type = t.id; skRefreshUI(); });
+    chips.appendChild(b);
+  });
+
+  const list = $('skPassList');
+  list.innerHTML = '';
+  const passes = skPasses();
+  if(!passes.length){
+    const d = document.createElement('div');
+    d.className = 'sk-pass';
+    d.style.cssText = 'color:var(--ink-faint);font-size:12px;';
+    d.textContent = 'ยังไม่ได้วาดอะไรลงไป';
+    list.appendChild(d);
+  }else{
+    passes.forEach((p, i) => {
+      const t = SK_TYPE_BY_ID[p.type];
+      const row = document.createElement('div');
+      row.className = 'sk-pass';
+      row.innerHTML = '<span class="sw" style="background:' + t.color + '"></span>'
+        + '<span class="lbl">' + (i+1) + ' · ' + t.label + '</span>'
+        + '<span class="cnt">×' + p.count + '</span>';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = 'รายละเอียดเพิ่มเติม (ไม่ใส่ก็ได้)';
+      inp.value = SK_DESC[p.type] || '';
+      // Only the prompt preview is rebuilt while typing — rebuilding this list
+      // would take the focus out of the field on every keystroke.
+      inp.addEventListener('input', () => { SK_DESC[p.type] = inp.value; skRefreshPrompt(); });
+      row.appendChild(inp);
+      list.appendChild(row);
+    });
+  }
   skRefreshPrompt();
   updateRunEnabled();
 }
+
 function skSetStage(which){
   SK.stage = which;
   const on = state.workflow === 'sketch';
@@ -1431,7 +1564,7 @@ function skSyncMode(){
     if(!p) return;
     cv.setPointerCapture(e.pointerId);
     SK.hover = p;
-    SK.cur = { size: parseFloat($('skBrush').value), pts: [p] };
+    SK.cur = { type: SK.type, size: parseFloat($('skBrush').value), pts: [p] };
     skRedraw();
   });
   // Runs whether or not a stroke is in progress: the ring has to follow the
@@ -1456,15 +1589,13 @@ function skSyncMode(){
 
   $('skUndo').addEventListener('click', () => { SK.strokes.pop(); skRedraw(); skRefreshUI(); });
   $('skClear').addEventListener('click', () => { SK.strokes = []; skRedraw(); skRefreshUI(); });
-  $('skBrush').addEventListener('input', skRedraw);
-  $('skWhat').addEventListener('input', skRefreshUI);
   document.querySelectorAll('#stageTabs .stg').forEach(b =>
     b.addEventListener('click', () => skSetStage(b.dataset.stg)));
   $('btnRandSeedSketch').addEventListener('click', () => {
     $('skSeed').value = Math.floor(Math.random()*1_000_000_000);
   });
-  // The stage resizes for reasons a window resize never reports — the toolbar
-  // or the note above it can rewrap, which shortens the
+  // The stage resizes for reasons a window resize never reports — the chip row
+  // wraps to two lines the first time a count badge appears, which shortens the
   // box under the canvas. The image is object-fit:contain so it re-centres
   // itself; the canvas is absolutely positioned and would not, and every stroke
   // after that would land somewhere else in the mask than on screen.
@@ -1481,48 +1612,74 @@ async function uploadBlob(blob, name){
   return (await res.json()).name;
 }
 
-// One mask, one prompt, one pass. The chaining loop that used to be here
-// existed only to give each element type its own sentence; with the type table
-// gone there is nothing left to chain, and the frame no longer pays a VAE
-// round-trip per type either. Two different things in one picture means two
-// runs, which is also what any other masked-edit tool would ask for.
-async function runSketchPass(){
-  if(!SK.strokes.length){ log('ยังไม่ได้วาดอะไรลงไป — ลากทับตำแหน่งที่ต้องการก่อน', 'err'); return; }
-  const what = $('skWhat').value.trim();
-  if(!what){ log('ยังไม่ได้พิมพ์ว่าอยากให้เกิดอะไรตรงที่วาด', 'err'); return; }
+async function runSketchPasses(){
+  const passes = skPasses();
+  if(!passes.length){ log('ยังไม่ได้วาดอะไรลงไป — เลือกชนิดแล้วลากทับตำแหน่งที่ต้องการก่อน', 'err'); return; }
 
   const [mw, mh] = skMaskSize();
+  const feather = Math.round(Math.min(mw, mh) * (parseFloat($('skFeather').value) || 0) / 100);
+  const seed = parseInt($('skSeed').value);
   const img = $('skImg');
-  const megapixels = parseFloat($('skMegapixels').value);
-
-  let maskName;
-  try{
-    maskName = await uploadBlob(await skMaskBlob(mw, mh), 'sketchmask_' + Date.now() + '.png');
-  }catch(e){
-    log('อัปโหลด mask ไม่สำเร็จ: ' + e.message, 'err');
-    return;
-  }
-
-  const out = await submitAndWait(buildSSSPrompt({
-    imageName: state.uploadedName,
-    maskImage: maskName,
-    maskFeather: Math.round(Math.min(mw, mh) * (parseFloat($('skFeather').value) || 0) / 100),
-    // Both sides already multiples of 16 and holding the source's own ratio, so
-    // the VAE has nothing left to crop and the frame comes back in proportion.
-    scaleTo: skWorkSize(img.naturalWidth, img.naturalHeight, megapixels),
-    megapixels,
+  const common = {
     mode: $('skTurbo').value,
     guidance: parseFloat($('skGuidance').value),
+    megapixels: parseFloat($('skMegapixels').value),
+    // Fixed for the whole run, from the frame that was uploaded. Every pass
+    // works at one size, so chaining cannot drift the proportions either.
+    scaleTo: skWorkSize(img.naturalWidth, img.naturalHeight, parseFloat($('skMegapixels').value)),
     lockOutside: $('skLock').checked,
-    seed: parseInt($('skSeed').value),
-    prompt: buildSketchPromptP({ what })
-  }), SAVE_IMAGE_NODE_ID_SSS);
+    maskFeather: feather
+  };
 
-  if(out){
-    showRunResult(out);
+  const stamp = Date.now();
+  let inputName = state.uploadedName;
+  let last = null;
+
+  for(let i = 0; i < passes.length; i++){
+    const p = passes[i];
+    log('รอบที่ ' + (i+1) + '/' + passes.length + ' · ' + SK_TYPE_BY_ID[p.type].label + ' · ' + p.count + ' จุด');
+
+    let maskName;
+    try{
+      maskName = await uploadBlob(await skMaskBlob(p.type, mw, mh), 'sketchmask_' + stamp + '_' + p.type + '.png');
+    }catch(e){
+      log('อัปโหลด mask ไม่สำเร็จ: ' + e.message, 'err');
+      break;
+    }
+
+    const img = await submitAndWait(buildSSSPrompt(Object.assign({}, common, {
+      imageName: inputName,
+      maskImage: maskName,
+      // A different seed per pass: the same one twice correlates what appears
+      // in two unrelated masks.
+      seed: seed + i,
+      prompt: buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type] })
+    })), SAVE_IMAGE_NODE_ID_SSS);
+
+    if(!img){ log('หยุดที่รอบ ' + (i+1) + ' — ผลของรอบก่อนหน้ายังใช้ได้', 'err'); break; }
+    last = img;
+
+    // Feed this pass into the next one. LoadImage reads ComfyUI's input folder
+    // and SaveImage writes to its output folder, so the frame has to come back
+    // over /view and go up again rather than be referenced by name.
+    if(i < passes.length - 1){
+      try{
+        const res = await fetch(viewUrlFor(img));
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        inputName = await uploadBlob(await res.blob(), 'sketchstep_' + stamp + '_' + i + '.png');
+      }catch(e){
+        log('ส่งภาพต่อเข้ารอบถัดไปไม่ได้: ' + e.message, 'err');
+        break;
+      }
+    }
+  }
+
+  if(last){
+    showRunResult(last);
     skSetStage('result');
   }
 }
+
 // upload handling
 const dropZone = $('dropZone'), fileInput = $('fileInput');
 dropZone.addEventListener('click', ()=>fileInput.click());
@@ -1567,11 +1724,10 @@ async function handleFile(file){
 }
 
 function updateRunEnabled(){
-  // Sketch to Add needs both halves: a mask saying where, and a line saying
-  // what. Either one alone is an empty request.
-  const ready = state.workflow !== 'sketch'
-    || (SK.strokes.length > 0 && $('skWhat').value.trim().length > 0);
-  btnRun.disabled = !(state.connected && state.uploadedName && ready);
+  // Sketch to Add has nothing to do until something is actually drawn — the
+  // mask is the instruction, so an empty canvas is an empty request.
+  const drawn = state.workflow !== 'sketch' || SK.strokes.length > 0;
+  btnRun.disabled = !(state.connected && state.uploadedName && drawn);
 }
 
 $('btnRandSeedMagnific').addEventListener('click', ()=>{
@@ -1597,7 +1753,7 @@ async function runWorkflow(){
   // single-graph path below.
   if(state.workflow === 'sketch'){
     await freeIfModelSwitch('flux2');
-    await runSketchPass();
+    await runSketchPasses();
     btnRun.disabled = false;
     return;
   }
