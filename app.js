@@ -106,7 +106,17 @@ function buildSSSPrompt(opts){
     // The exported workflow wires node 45 to the PreviewImage node (124), but
     // PreviewImage is an output node with no output slot, so ComfyUI rejects the
     // graph. Read the image straight from LoadImage and drop the preview node.
-    "45":  { class_type:"ImageScaleToTotalPixels", inputs:{ upscale_method:"lanczos", megapixels: opts.megapixels, resolution_steps:1, image:["125",0] } },
+    // ImageScaleToTotalPixels rounds each side on its own and the VAE then crops
+    // each side down to a multiple of 16, again on its own. On a 3904x2112
+    // source that came out 1968x1056 — the height lost 9 rows, the width 1
+    // column, and the frame arrived 0.82% wider in proportion than it went in,
+    // enough that the two halves of the compare slider no longer lined up.
+    // Sketch to Add hands in the size instead, both sides already multiples of
+    // 16 and picked to hold the source's own ratio, so nothing is cropped:
+    // that frame lands on 1952x1056, exactly 3904x2112 halved.
+    "45": opts.scaleTo
+      ? { class_type:"ImageScale", inputs:{ upscale_method:"lanczos", width: opts.scaleTo[0], height: opts.scaleTo[1], crop:"disabled", image:["125",0] } }
+      : { class_type:"ImageScaleToTotalPixels", inputs:{ upscale_method:"lanczos", megapixels: opts.megapixels, resolution_steps:1, image:["125",0] } },
 
     "68:38": { class_type:"CLIPLoader", inputs:{ clip_name:"mistral_3_small_flux2_bf16.safetensors", type:"flux2", device:"default" } },
     "68:12": { class_type:"UNETLoader", inputs:{ unet_name:"flux2_dev_fp8mixed.safetensors", weight_dtype:"default" } },
@@ -1319,61 +1329,16 @@ function skPaint(ctx, strokes, W, H, colour, extra, dy){
   }
 }
 
-// The mask is a hard boundary, and a shadow is something appearing: a canopy
-// drawn on its own comes back with no trunk under it and no shadow on the
-// ground, because both of those live in pixels the mask forbids touching. No
-// wording fixes that — "it casts its own shadow onto the ground" was already in
-// the prompt when the first tree came back shadowless on 2026-08-19. So the
-// exported mask is grown past the stroke instead: a little in every direction,
-// and much further downward, which is where a trunk, a pair of legs, a wheel
-// and a contact shadow all are. A light fitting gets an even grow instead —
-// its glow spreads in every direction, and it has no trunk.
-function skApron(type){
-  const v = Math.max(0, parseFloat($('skGround').value) || 0) / 100;
-  return SK_EMITTING[type] ? { grow: v, drop: 0 } : { grow: v * 0.4, drop: v * 1.8 };
-}
+// Grown/graded shadow room removed 2026-08-19 at peetz's call, after three
+// renders that each traded one fault for another: at full strength it grew a
+// second tree in ground meant only to be shaded, at half strength it produced
+// nothing at all, and at 85% the tree still would not settle onto the ground.
+// The mask is the stroke and nothing else now — draw where the thing goes,
+// including down to where it meets the ground, and let the model work out the
+// shadow the way it works out everything else in the frame.
 
-// The grown area is where the shadow may land, NOT a second place to put the
-// thing — but a mask painted pure white says nothing of the sort. Every pixel
-// at 1.0 gets the same instruction, so "trees now grow in it" grew trees in the
-// shadow room as readily as in the stroke, which is exactly what peetz saw.
-//
-// SetLatentNoiseMask takes the values between, not just black and white: the
-// sampler keeps the original in proportion to 1 - mask, so a grey area moves
-// only part of the way toward what was asked for. Enough to darken ground into
-// a shadow, not enough to assemble a trunk and a canopy there. Strongest right
-// under the stroke where a contact shadow sits, weakest at the far end — which
-// is how a real cast shadow falls off anyway.
-// Read off a control rather than fixed, because the right strength depends on
-// how much was drawn and what lies under it. Both ends are known: at 1.0 the
-// shadow room grew its own trees, and at 0.5 nothing happened at all — not even
-// a shadow, and the trunk stopped where the stroke did.
-const skApronStrength = () => Math.max(0, Math.min(100, parseFloat($("skApronPower").value) || 0)) / 100;
-const SK_GREY = v => {
-  const n = Math.round(Math.max(0, Math.min(1, v)) * 255);
-  return 'rgb(' + n + ',' + n + ',' + n + ')';
-};
-
-// Smearing the stroke downward in small steps, rather than stamping one big
-// shape at the bottom, keeps the grown area the shape of what was drawn. The
-// steps run far-to-near so the nearer, stronger ones paint over the weaker.
-// A colour means this is the on-screen preview; without one it is the mask.
-function skPaintGrown(ctx, strokes, W, H, type, colour){
-  const short = Math.min(W, H);
-  const { grow, drop } = skApron(type);
-  const dropPx = drop * short;
-  const steps = dropPx > 0 ? Math.max(1, Math.round(dropPx / 4)) : 0;
-  const near = skApronStrength(), far = near * 0.55;
-  const shade = f => colour || SK_GREY(near - (near - far) * f);
-  for(let i = steps; i >= 1; i--){
-    const f = i / steps;
-    skPaint(ctx, strokes, W, H, shade(f), grow * short, dropPx * f);
-  }
-  skPaint(ctx, strokes, W, H, shade(0), grow * short, 0);
-}
-
-// A reusable offscreen canvas. Two of these are kept rather than allocated per
-// redraw, because a redraw happens on every pointermove.
+// A reusable offscreen canvas, kept rather than allocated per redraw, because a
+// redraw happens on every pointermove.
 function skLayer(key, W, H){
   const c = SK[key] || (SK[key] = document.createElement('canvas'));
   if(c.width !== W || c.height !== H){ c.width = W; c.height = H; }
@@ -1389,25 +1354,11 @@ function skRedraw(){
   const all = SK.cur ? SK.strokes.concat([SK.cur]) : SK.strokes;
 
   if(all.length){
-    // Each layer is painted opaque into its own canvas and composited once.
-    // Setting globalAlpha and painting straight onto the stage looks the same
-    // for a single stamp and is wrong for everything else: the grown area is
-    // laid down as a few dozen overlapping stamps, and stacking those at 0.14
-    // apiece measured alpha 247 out of 255 — a hint meant to be faint arrived
-    // as a solid slab, more opaque than the stroke it was supposed to sit
-    // behind, which is why the brush ring looked far too small next to it.
-    const grown = skLayer('layerGrown', cv.width, cv.height);
-    const gx = grown.getContext('2d');
-    for(const t of new Set(all.map(s => s.type))){
-      skPaintGrown(gx, all.filter(s => s.type === t), cv.width, cv.height, t, SK_TYPE_BY_ID[t].color);
-    }
+    // Painted opaque into its own canvas and composited once. Setting
+    // globalAlpha and painting straight onto the stage stacks every overlapping
+    // stroke, and the overlaps then read darker than the strokes themselves.
     const marks = skLayer('layerMarks', cv.width, cv.height);
     skPaint(marks.getContext('2d'), all, cv.width, cv.height, null);
-
-    // The grown area is shown at all because it is part of what gets
-    // regenerated — someone who cannot see it cannot tell whether the shadow
-    // has room to land.
-    ctx.globalAlpha = 0.16; ctx.drawImage(grown, 0, 0);
     ctx.globalAlpha = 0.45; ctx.drawImage(marks, 0, 0);
     ctx.globalAlpha = 1;
   }
@@ -1417,31 +1368,14 @@ function skRedraw(){
 // The brush lays down a round stamp — measured 86x86 for a 10% brush, area
 // 0.998 of a true circle — but the pointer was a crosshair, which tells you
 // nothing about how much of the frame that stamp covers. So the pointer is the
-// stamp: a ring at its real size, with the grown area outlined below it, since
-// that outline is the difference between a tree that can cast a shadow and one
-// that cannot. Drawn last so it sits over the strokes, and never exported —
-// skMaskBlob paints through skPaintGrown alone.
+// stamp: a ring at its real size. Drawn last so it sits over the strokes, and
+// never exported — skMaskBlob paints a fresh canvas.
 function skCursor(ctx, W, H){
   if(!SK.hover) return;
   const short = Math.min(W, H);
   const rad = Math.max(2, parseFloat($('skBrush').value) / 100 * short) / 2;
-  const { grow, drop } = skApron(SK.type);
   const x = SK.hover[0] * W, y = SK.hover[1] * H;
-  const gr = rad + grow * short, dy = drop * short;
-
   ctx.save();
-  if(gr > rad + 0.5 || dy > 0.5){
-    ctx.setLineDash([4, 4]);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = '#ffffffcc';
-    ctx.beginPath();
-    ctx.arc(x, y, gr, Math.PI, 0);
-    ctx.lineTo(x + gr, y + dy);
-    ctx.arc(x, y + dy, gr, 0, Math.PI);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
   // A dark ring under a light one, so the cursor reads on a bright sky and on
   // dark asphalt without knowing which it is over.
   ctx.lineWidth = 3; ctx.strokeStyle = '#00000088';
@@ -1460,15 +1394,34 @@ function skMaskSize(){
   return [Math.max(8, Math.round(img.naturalWidth * s)), Math.max(8, Math.round(img.naturalHeight * s))];
 }
 
+// Pick the size the frame is worked at: both sides multiples of 16, so the VAE
+// has nothing left to crop, and as close to the source's own ratio as a pair of
+// integers allows. Ratio is weighted far above pixel count because a frame
+// 2% under the requested megapixels looks identical and a frame 0.8% out of
+// proportion does not — it stops lining up with the original.
+function skWorkSize(w, h, megapixels){
+  const target = Math.max(0.25, megapixels) * 1024 * 1024;
+  const aspect = w / h;
+  const centre = Math.round(Math.sqrt(target / aspect) / 16) * 16;
+  let best = null;
+  for(let hh = centre - 64; hh <= centre + 64; hh += 16){
+    if(hh < 64) continue;
+    const ww = Math.max(64, Math.round(hh * aspect / 16) * 16);
+    const score = Math.abs(ww / hh - aspect) / aspect * 1000
+                + Math.abs(ww * hh - target) / target;
+    if(!best || score < best.score) best = { w: ww, h: hh, score };
+  }
+  return [best.w, best.h];
+}
+
 function skMaskBlob(type, W, H){
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   const mine = SK.strokes.filter(s => s.type === type);
-  // Shadow room first, at partial strength, then the stroke itself over the top
-  // at full strength. What was drawn on is the only place the thing can be.
-  skPaintGrown(ctx, mine, W, H, type, null);
+  // The mask is exactly what was drawn: the thing goes where the stroke is, and
+  // its shadow is left to the model, the same as every other shadow in the frame.
   skPaint(ctx, mine, W, H, '#fff');
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
@@ -1604,9 +1557,6 @@ function skSyncMode(){
 
   $('skUndo').addEventListener('click', () => { SK.strokes.pop(); skRedraw(); skRefreshUI(); });
   $('skClear').addEventListener('click', () => { SK.strokes = []; skRedraw(); skRefreshUI(); });
-  $('skBrush').addEventListener('input', skRedraw);
-  $('skGround').addEventListener('input', skRedraw);
-  $('skApronPower').addEventListener('input', skRedraw);
   document.querySelectorAll('#stageTabs .stg').forEach(b =>
     b.addEventListener('click', () => skSetStage(b.dataset.stg)));
   $('btnRandSeedSketch').addEventListener('click', () => {
@@ -1637,10 +1587,14 @@ async function runSketchPasses(){
   const [mw, mh] = skMaskSize();
   const feather = Math.round(Math.min(mw, mh) * (parseFloat($('skFeather').value) || 0) / 100);
   const seed = parseInt($('skSeed').value);
+  const img = $('skImg');
   const common = {
     mode: $('skTurbo').value,
     guidance: parseFloat($('skGuidance').value),
     megapixels: parseFloat($('skMegapixels').value),
+    // Fixed for the whole run, from the frame that was uploaded. Every pass
+    // works at one size, so chaining cannot drift the proportions either.
+    scaleTo: skWorkSize(img.naturalWidth, img.naturalHeight, parseFloat($('skMegapixels').value)),
     lockOutside: $('skLock').checked,
     maskFeather: feather
   };
