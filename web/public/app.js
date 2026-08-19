@@ -1212,14 +1212,29 @@ refreshPeoplePrompt();
 // One pass per element type, chained: pass two edits pass one's output. Types
 // are not merged into a single pass because one sentence asking for trees and
 // cars puts trees in the car mask and cars in the tree mask.
+// Canopy and trunk are separate types, peetz's idea, because one sentence
+// covering both is what left trees floating. A stroke round the canopy and a
+// thin one down to the ground share the mask of a single "tree" pass, so both
+// regions get "a real tree standing on the ground with a trunk, a branching
+// structure and a full leafy canopy" — which the narrow lower strip can satisfy
+// by continuing the road behind it as easily as by growing a trunk, and did.
+// Split apart, the lower strip gets a sentence about a trunk meeting the ground
+// and nothing else. Whole "tree" stays for anything small or far enough away to
+// draw in one blob.
+//
+// `order` is the pass order, not the draw order: the canopy is rendered first
+// so that when the trunk pass runs, the canopy is already in the frame for the
+// trunk to grow up and meet.
 const SK_TYPES = [
-  { id:'tree',   label:'ต้นไม้',   color:'#3FA34D' },
-  { id:'rock',   label:'หิน',      color:'#8A8F98' },
-  { id:'people', label:'คน',       color:'#E0632F' },
-  { id:'car',    label:'รถ',       color:'#2D6CDF' },
-  { id:'animal', label:'สัตว์',    color:'#9B59B6' },
-  { id:'lamp',   label:'ดวงโคม',   color:'#E5B700' },
-  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5' }
+  { id:'tree',   label:'ต้นไม้',   color:'#3FA34D', order:1 },
+  { id:'canopy', label:'พุ่มใบ',   color:'#6FBF4A', order:1 },
+  { id:'trunk',  label:'ลำต้น',    color:'#8B5E34', order:2 },
+  { id:'rock',   label:'หิน',      color:'#8A8F98', order:1 },
+  { id:'people', label:'คน',       color:'#E0632F', order:3 },
+  { id:'car',    label:'รถ',       color:'#2D6CDF', order:3 },
+  { id:'animal', label:'สัตว์',    color:'#9B59B6', order:3 },
+  { id:'lamp',   label:'ดวงโคม',   color:'#E5B700', order:4 },
+  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5', order:4 }
 ];
 const SK_TYPE_BY_ID = Object.fromEntries(SK_TYPES.map(t => [t.id, t]));
 
@@ -1240,6 +1255,18 @@ const SK_WHAT = {
   tree: n => n === 1
     ? `The only change is that a tree now grows in it: a real tree standing on the ground with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around it.`
     : `The only change is that trees now grow in it: real trees standing on the ground, each with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around them.`,
+  // Says nothing about a trunk or about the ground. This region is the crown
+  // and only the crown; whatever holds it up is the trunk pass's problem, and
+  // mentioning it here is what let foliage wander down the trunk's strip.
+  canopy: n => n === 1
+    ? `The only change is that the leafy crown of a tree now fills it: dense foliage carried on spreading branches, thinning to open sky at its edges, at a believable size for the space around it.`
+    : `The only change is that the leafy crowns of trees now fill it: dense foliage carried on spreading branches, thinning to open sky at their edges, at a believable size for the space around them.`,
+  // The two clauses that matter: it reaches the ground at the bottom, and it
+  // reaches the foliage at the top. Both ends are named because both ends are
+  // where the previous attempts stopped short.
+  trunk: n => n === 1
+    ? `The only change is that the trunk of a tree now rises through it: real bark on a single upright stem, standing on the ground at its foot where it meets the surface it grows out of, and carrying its branches up into the foliage above, at a believable thickness for its height.`
+    : `The only change is that the trunks of trees now rise through it: real bark on upright stems, each standing on the ground at its foot where it meets the surface it grows out of, and carrying its branches up into the foliage above, at a believable thickness for its height.`,
   rock: n => n === 1
     ? `The only change is that a natural rock now rests on the ground: weathered stone sitting where it lies, at a believable size for the space around it.`
     : `The only change is that natural rocks now rest on the ground: weathered stone sitting where it lies, at a believable size for the space around them.`,
@@ -1428,13 +1455,18 @@ function skMaskBlob(type, W, H){
 
 // Passes in the order the types were first drawn, so the list on screen and the
 // order they render in are the same thing.
+// Ordered by the type's own pass order first — a trunk needs the canopy already
+// in the frame to grow up and meet — then by the order the types were drawn, so
+// anything the table treats as equal still renders in the order it was sketched.
 function skPasses(){
-  const order = [], count = {};
+  const drawn = [], count = {};
   for(const s of SK.strokes){
-    if(!count[s.type]){ order.push(s.type); count[s.type] = 0; }
+    if(!count[s.type]){ drawn.push(s.type); count[s.type] = 0; }
     count[s.type]++;
   }
-  return order.map(t => ({ type: t, count: count[t] }));
+  return drawn
+    .map((t, i) => ({ type: t, count: count[t], order: SK_TYPE_BY_ID[t].order, seq: i }))
+    .sort((a, b) => (a.order - b.order) || (a.seq - b.seq));
 }
 
 function skRefreshPrompt(){
