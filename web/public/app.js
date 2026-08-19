@@ -1280,6 +1280,10 @@ function skSetImage(url){
     skFitCanvas();
   };
   img.src = url;
+  // A finished run leaves the stage on Result. A new image means a new drawing,
+  // so come back to the canvas — otherwise the next upload lands on a hidden
+  // stage, and a hidden stage has no size for a stroke to be measured against.
+  if(state.workflow === 'sketch') skSetStage('sketch');
   skRefreshUI();
 }
 
@@ -1300,18 +1304,46 @@ function skFitCanvas(){
   skRedraw();
 }
 
-function skPaint(ctx, strokes, W, H, colour){
+function skPaint(ctx, strokes, W, H, colour, extra, dy){
   const short = Math.min(W, H);
+  const pad = extra || 0, oy = dy || 0;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for(const st of strokes){
     ctx.strokeStyle = colour || SK_TYPE_BY_ID[st.type].color;
-    ctx.lineWidth = Math.max(2, st.size / 100 * short);
+    ctx.lineWidth = Math.max(2, st.size / 100 * short + 2*pad);
     ctx.beginPath();
-    st.pts.forEach((p, i) => i ? ctx.lineTo(p[0]*W, p[1]*H) : ctx.moveTo(p[0]*W, p[1]*H));
+    st.pts.forEach((p, i) => i ? ctx.lineTo(p[0]*W, p[1]*H + oy) : ctx.moveTo(p[0]*W, p[1]*H + oy));
     // A single tap is still a dot, not nothing.
-    if(st.pts.length === 1) ctx.lineTo(st.pts[0][0]*W + 0.01, st.pts[0][1]*H);
+    if(st.pts.length === 1) ctx.lineTo(st.pts[0][0]*W + 0.01, st.pts[0][1]*H + oy);
     ctx.stroke();
   }
+}
+
+// The mask is a hard boundary, and a shadow is something appearing: a canopy
+// drawn on its own comes back with no trunk under it and no shadow on the
+// ground, because both of those live in pixels the mask forbids touching. No
+// wording fixes that — "it casts its own shadow onto the ground" was already in
+// the prompt when the first tree came back shadowless on 2026-08-19. So the
+// exported mask is grown past the stroke instead: a little in every direction,
+// and much further downward, which is where a trunk, a pair of legs, a wheel
+// and a contact shadow all are. A light fitting gets an even grow instead —
+// its glow spreads in every direction, and it has no trunk.
+function skApron(type){
+  const v = Math.max(0, parseFloat($('skGround').value) || 0) / 100;
+  return SK_EMITTING[type] ? { grow: v, drop: 0 } : { grow: v * 0.4, drop: v * 1.8 };
+}
+
+// Smearing the stroke downward in small steps, rather than stamping one big
+// shape at the bottom, keeps the grown area the shape of what was drawn.
+function skPaintGrown(ctx, strokes, W, H, type, colour){
+  const short = Math.min(W, H);
+  const { grow, drop } = skApron(type);
+  const dropPx = drop * short;
+  const steps = dropPx > 0 ? Math.max(1, Math.round(dropPx / 4)) : 0;
+  for(let i = steps; i >= 1; i--){
+    skPaint(ctx, strokes, W, H, colour, grow * short, dropPx * (i / steps));
+  }
+  skPaint(ctx, strokes, W, H, colour, grow * short, 0);
 }
 
 function skRedraw(){
@@ -1319,8 +1351,16 @@ function skRedraw(){
   if(!cv.width) return;
   const ctx = cv.getContext('2d');
   ctx.clearRect(0, 0, cv.width, cv.height);
+  const all = SK.cur ? SK.strokes.concat([SK.cur]) : SK.strokes;
+  // The grown area is drawn faintly as well, because it is part of what gets
+  // regenerated — someone who cannot see it cannot tell why the frame changed
+  // where it did, and cannot tell whether the shadow has room to land.
+  ctx.globalAlpha = 0.14;
+  for(const t of new Set(all.map(s => s.type))){
+    skPaintGrown(ctx, all.filter(s => s.type === t), cv.width, cv.height, t, SK_TYPE_BY_ID[t].color);
+  }
   ctx.globalAlpha = 0.42;
-  skPaint(ctx, SK.cur ? SK.strokes.concat([SK.cur]) : SK.strokes, cv.width, cv.height, null);
+  skPaint(ctx, all, cv.width, cv.height, null);
   ctx.globalAlpha = 1;
 }
 
@@ -1338,7 +1378,7 @@ function skMaskBlob(type, W, H){
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  skPaint(ctx, SK.strokes.filter(s => s.type === type), W, H, '#fff');
+  skPaintGrown(ctx, SK.strokes.filter(s => s.type === type), W, H, type, '#fff');
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
 
@@ -1431,8 +1471,12 @@ function skSyncMode(){
 
 (function skInit(){
   const cv = $('skCanvas');
+  // A zero-sized rect divides to NaN, and a NaN point paints nothing at all —
+  // which reaches the GPU as an all-black mask that regenerates nothing and
+  // reports no error. Refuse the point instead.
   const at = e => {
     const r = cv.getBoundingClientRect();
+    if(!r.width || !r.height) return null;
     return [
       Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
       Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
@@ -1440,13 +1484,17 @@ function skSyncMode(){
   };
   cv.addEventListener('pointerdown', e => {
     e.preventDefault();
+    const p = at(e);
+    if(!p) return;
     cv.setPointerCapture(e.pointerId);
-    SK.cur = { type: SK.type, size: parseFloat($('skBrush').value), pts: [at(e)] };
+    SK.cur = { type: SK.type, size: parseFloat($('skBrush').value), pts: [p] };
     skRedraw();
   });
   cv.addEventListener('pointermove', e => {
     if(!SK.cur) return;
-    SK.cur.pts.push(at(e));
+    const p = at(e);
+    if(!p) return;
+    SK.cur.pts.push(p);
     skRedraw();
   });
   const finish = () => {
@@ -1462,6 +1510,7 @@ function skSyncMode(){
   $('skUndo').addEventListener('click', () => { SK.strokes.pop(); skRedraw(); skRefreshUI(); });
   $('skClear').addEventListener('click', () => { SK.strokes = []; skRedraw(); skRefreshUI(); });
   $('skBrush').addEventListener('input', skRedraw);
+  $('skGround').addEventListener('input', skRedraw);
   document.querySelectorAll('#stageTabs .stg').forEach(b =>
     b.addEventListener('click', () => skSetStage(b.dataset.stg)));
   $('btnRandSeedSketch').addEventListener('click', () => {

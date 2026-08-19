@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-19b">
+<link rel="stylesheet" href="styles.css?v=2026-08-19c">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -521,8 +521,13 @@
 
       <div class="card" id="paramsCardSketch" style="display:none;">
         <div class="card-head"><h2>03 · Parameters · SSS Sketch to Add</h2><span class="plate-no">PL.03</span></div>
-        <div class="sk-note">อัปโหลดภาพที่ <b>เรนเดอร์เสร็จแล้ว</b> · เลือกชนิดจากแถบด้านขวา แล้วลากวาดทับตำแหน่งที่ต้องการ<br>แต่ละชนิดจะถูกเจนเป็นรอบของตัวเอง ต่อกันไปทีละรอบ — วาดหลายชนิดจะใช้เวลาเป็นเท่าตัว</div>
+        <div class="sk-note">อัปโหลดภาพที่ <b>เรนเดอร์เสร็จแล้ว</b> · เลือกชนิดจากแถบด้านขวา แล้วลากวาดทับตำแหน่งที่ต้องการ<br>สิ่งที่วาดจะเกิดได้<b>เฉพาะในพื้นที่ที่วาดเท่านั้น</b> — นอกนั้นถูกล็อกไว้ ลากยาวคลุมตั้งแต่ยอดลงมาถึงพื้นด้วย<br>แต่ละชนิดจะถูกเจนเป็นรอบของตัวเอง ต่อกันไปทีละรอบ — วาดหลายชนิดจะใช้เวลาเป็นเท่าตัว</div>
         <div id="skPassList"></div>
+        <label class="field" style="margin-top:12px;">
+          <span>เผื่อพื้นที่ให้ลำต้นและเงา (% ของด้านสั้น)</span>
+          <input type="number" id="skGround" value="12" step="1" min="0" max="40">
+          <span class="fieldhint">เงาที่พื้นกับลำต้นอยู่ใต้เส้นที่วาด ซึ่งอยู่นอก mask จึงเกิดไม่ได้ · ค่านี้ขยาย mask ลงล่างให้มีที่ยืน แถบจางบนกระดานคือพื้นที่ที่ขยายออกไปจริง · ใส่ 0 = ตรงตามเส้นเป๊ะ</span>
+        </label>
 
         <details class="optgroup">
           <summary>Render settings<span class="og-sign"></span></summary>
@@ -811,6 +816,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-19b"></script>
+<script src="app.js?v=2026-08-19c"></script>
 </body>
 </html>
