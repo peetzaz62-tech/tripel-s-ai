@@ -183,7 +183,7 @@ function buildSSSPrompt(opts){
 const SAVE_IMAGE_NODE_ID_SSS = "9";
 
 // ---------------------------------------------------------------------------
-let state = { workflow:"magnific", uploadedName:null, origPreviewURL:null, connected:false, clientId: crypto.randomUUID(), autoMaterials:"", lastModelKind:null };
+let state = { workflow:"magnific", uploadedName:null, origPreviewURL:null, connected:false, clientId: crypto.randomUUID(), autoMaterials:"", lastResult:null, lastModelKind:null };
 
 const $ = id => document.getElementById(id);
 const serverUrlEl = $('serverUrl');
@@ -1756,6 +1756,7 @@ $('btnRandSeedPeople').addEventListener('click', ()=>{
 });
 
 btnRun.addEventListener('click', runWorkflow);
+$('btnUpscaleResult').addEventListener('click', upscaleLastResult);
 
 // The working size for whichever mode is about to run, from the frame that was
 // uploaded. Sketch to Add has done this since 2026-08-19; the other flux2 modes
@@ -1897,7 +1898,62 @@ function showRunResult(img){
   showCompare(state.origPreviewURL, viewUrl);
   $('dlLink').href = viewUrl;
   $('dlLink').download = img.filename;
+  // Remembered so Upscale This knows what to work on. Every mode routes its
+  // output through here, so the button works from all four without each one
+  // having to hand it anything.
+  state.lastResult = img;
+  const up = $('btnUpscaleResult');
+  if(up) up.disabled = !state.connected;
   $('actionsBottom').style.display = 'flex';
+}
+
+// Send the frame that was just produced straight into SSS Upscale.
+//
+// peetz's finding, 2026-08-20: rendering at 1MP with 20 steps gives the quality
+// he wants for a fraction of the time that rendering at 2MP costs, and the
+// stiffness that leaves is exactly what the upscale pass is for. Doing that by
+// hand meant downloading the result and uploading it again as a new job, so the
+// button does it in place.
+//
+// It reads the Upscale card's own settings whether or not that card is on
+// screen, so the numbers behind the button are always the ones the user can see
+// by switching to that mode — there is no second hidden set.
+async function upscaleLastResult(){
+  if(!state.lastResult){ log('ยังไม่มีภาพผลลัพธ์ให้ upscale', 'err'); return; }
+  const btn = $('btnUpscaleResult');
+  btn.disabled = true;
+  btnRun.disabled = true;
+  clearLog();
+
+  let inputName;
+  try{
+    log('ส่งภาพผลลัพธ์กลับขึ้นไปเป็นภาพตั้งต้นของ Upscale...');
+    const res = await fetch(viewUrlFor(state.lastResult));
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    inputName = await uploadBlob(await res.blob(), 'upscale_' + Date.now() + '.png');
+  }catch(e){
+    log('ส่งภาพขึ้นไปไม่สำเร็จ: ' + e.message, 'err');
+    btn.disabled = false; updateRunEnabled(); return;
+  }
+
+  // Upscale is the one mode on flux1, so coming from any other mode is always a
+  // model-family switch — the one case where ComfyUI's own eviction was
+  // measured not to keep up.
+  await freeIfModelSwitch('flux1');
+
+  log('Upscale ×' + $('pUpscaleBy').value + ' · denoise ' + $('pDenoise').value + ' · ' + $('pSteps').value + ' steps');
+  const out = await submitAndWait(buildMagnificPrompt({
+    imageName: inputName,
+    prompt: $('pPrompt').value,
+    upscaleBy: parseFloat($('pUpscaleBy').value),
+    denoise: parseFloat($('pDenoise').value),
+    steps: parseInt($('pSteps').value),
+    seed: parseInt($('pSeed').value)
+  }), SAVE_IMAGE_NODE_ID_MAGNIFIC);
+
+  if(out) showRunResult(out);
+  btn.disabled = false;
+  updateRunEnabled();
 }
 
 // Queue one graph and wait for it, returning its first SaveImage output entry,

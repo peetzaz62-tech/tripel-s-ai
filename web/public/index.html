@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-19r">
+<link rel="stylesheet" href="styles.css?v=2026-08-20a">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -422,7 +422,7 @@
                 <select id="sTurbo">
                   <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
                   <option value="balanced">Balanced — 8 steps ไม่มี LoRA (วัสดุสีเข้มตรงกว่า)</option>
-                  <option value="quality">Quality — 20 steps (คมสุด วัสดุตรงสุด)</option>
+                  <option value="quality" selected>Quality — 20 steps (คมสุด วัสดุตรงสุด)</option>
                 </select>
               </label>
               <label class="field">
@@ -433,7 +433,7 @@
             <div class="row2">
               <label class="field">
                 <span>Output resolution (MP)</span>
-                <input type="number" id="sMegapixels" value="2" step="0.5" min="0.5" max="8">
+                <input type="number" id="sMegapixels" value="1" step="0.5" min="0.5" max="8">
               </label>
 <label class="field">
                 <span>ยึดต้นฉบับ — Denoise</span>
@@ -482,7 +482,7 @@
                 <select id="apTurbo">
                   <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
                   <option value="balanced">Balanced — 8 steps ไม่มี LoRA (วัสดุสีเข้มตรงกว่า)</option>
-                  <option value="quality">Quality — 20 steps (คมสุด วัสดุตรงสุด)</option>
+                  <option value="quality" selected>Quality — 20 steps (คมสุด วัสดุตรงสุด)</option>
                 </select>
               </label>
               <label class="field">
@@ -493,7 +493,7 @@
             <div class="row2">
               <label class="field">
                 <span>Output resolution (MP)</span>
-                <input type="number" id="apMegapixels" value="2" step="0.5" min="0.5" max="8">
+                <input type="number" id="apMegapixels" value="1" step="0.5" min="0.5" max="8">
               </label>
               <label class="field">
                 <span>Seed</span>
@@ -526,7 +526,7 @@
                 <select id="skTurbo">
                   <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
                   <option value="balanced">Balanced — 8 steps ไม่มี LoRA</option>
-                  <option value="quality">Quality — 20 steps (คมสุด)</option>
+                  <option value="quality" selected>Quality — 20 steps (คมสุด)</option>
                 </select>
               </label>
               <label class="field">
@@ -537,7 +537,7 @@
             <div class="row2">
               <label class="field">
                 <span>Output resolution (MP)</span>
-                <input type="number" id="skMegapixels" value="2" step="0.5" min="0.5" max="8">
+                <input type="number" id="skMegapixels" value="1" step="0.5" min="0.5" max="8">
               </label>
               <label class="field">
                 <span>Seed</span>
@@ -617,6 +617,7 @@
       <div class="actions-bottom" id="actionsBottom" style="display:none;">
         <a class="dl" id="dlLink" download>↓ Download Result</a>
         <a class="dl secondary" id="dlOrigLink" download>↓ Download Original</a>
+        <button class="dl" id="btnUpscaleResult" title="ส่งภาพผลลัพธ์นี้เข้าโหมด SSS Upscale ต่อทันที">↑ Upscale This</button>
       </div>
     </div>
   </div>
@@ -805,6 +806,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-19r"></script>
+<script src="app.js?v=2026-08-20a"></script>
 </body>
 </html>
