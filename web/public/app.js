@@ -1225,18 +1225,30 @@ refreshPeoplePrompt();
 // `order` is the pass order, not the draw order: the canopy is rendered first
 // so that when the trunk pass runs, the canopy is already in the frame for the
 // trunk to grow up and meet.
+// Two colours per type, and they are not the same thing. `color` is the chip
+// and the overlay on screen, chosen to be told apart at a glance. `paint` is
+// what is stamped into the frame that goes up to the model, and it is
+// deliberately dull: bright enough to say "something solid of about this tone
+// stands here", never bright enough to read as a request for that colour. A
+// car painted in the chip's blue came back a blue car.
 const SK_TYPES = [
-  { id:'tree',   label:'ต้นไม้',   color:'#3FA34D', order:1 },
-  { id:'canopy', label:'พุ่มใบ',   color:'#6FBF4A', order:1 },
-  { id:'trunk',  label:'ลำต้น',    color:'#8B5E34', order:2 },
-  { id:'rock',   label:'หิน',      color:'#8A8F98', order:1 },
-  { id:'people', label:'คน',       color:'#E0632F', order:3 },
-  { id:'car',    label:'รถ',       color:'#2D6CDF', order:3 },
-  { id:'animal', label:'สัตว์',    color:'#9B59B6', order:3 },
-  { id:'lamp',   label:'ดวงโคม',   color:'#E5B700', order:4 },
-  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5', order:4 }
+  // One chip for the whole tree means one colour for a canopy and a trunk, and
+  // a trunk stamped in canopy green came back covered in moss. A thin stroke is
+  // a trunk or a branch by construction — the brush has to be wound right down
+  // to draw one — so the thin ones are stamped in bark instead.
+  { id:'tree',   label:'ต้นไม้',   color:'#3FA34D', paint:'#3A682C', paintThin:'#5C442C', order:1 },
+  { id:'canopy', label:'พุ่มใบ',   color:'#6FBF4A', paint:'#3A682C', order:1 },
+  { id:'trunk',  label:'ลำต้น',    color:'#8B5E34', paint:'#5C442C', order:2 },
+  { id:'rock',   label:'หิน',      color:'#8A8F98', paint:'#807C76', order:1 },
+  { id:'people', label:'คน',       color:'#E0632F', paint:'#68635E', order:3 },
+  { id:'car',    label:'รถ',       color:'#2D6CDF', paint:'#96989C', order:3 },
+  { id:'animal', label:'สัตว์',    color:'#9B59B6', paint:'#786858', order:3 },
+  { id:'lamp',   label:'ดวงโคม',   color:'#E5B700', paint:'#E6CD96', order:4 },
+  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5', paint:'#E6CD96', order:4 }
 ];
 const SK_TYPE_BY_ID = Object.fromEntries(SK_TYPES.map(t => [t.id, t]));
+// Brush sizes run 2..30. Anything under this is too narrow to be a canopy.
+const SK_THIN = 6;
 
 // Same opening as Add People, which is already proven for "the input is a
 // finished photograph, add something to it".
@@ -1413,6 +1425,74 @@ function skCursor(ctx, W, H){
   ctx.restore();
 }
 
+// The frame with this pass's strokes stamped into it, at the exact size the
+// pass will work at.
+//
+// This is the piece that was missing for a year of attempts. A mask is a
+// permission, not a shape: it says which pixels may change and nothing at all
+// about what belongs there, so the drawn silhouette never reached the model —
+// which is why a leaning trunk came back as no trunk. Stamping it into the
+// pixels hands it to FLUX.2 through ReferenceLatent, the model's own channel
+// for reading the picture it is editing. Inside the mask the sampler still
+// starts from pure noise, so the flat colour itself does not survive into the
+// result; only the shape does.
+//
+// Measured 2026-08-20 on a finished 1968x1056 exterior, one drawn tree leaning
+// hard to the left, everything else identical: unpainted came back as a canopy
+// with no trunk at all, painted came back as a full tree whose trunk follows
+// the drawn line down to the ground. Outside the mask 3.14 vs 3.37 — the frame
+// is no more disturbed than before.
+function skPaintedBlob(imgEl, type, W, H){
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(imgEl, 0, 0, W, H);
+
+  const t = SK_TYPE_BY_ID[type];
+  const mine = SK.strokes.filter(st => st.type === type);
+  const lay = document.createElement('canvas');
+  lay.width = W; lay.height = H;
+  const lctx = lay.getContext('2d');
+  // Softened, so the model is not asked to reproduce a hard paint edge.
+  lctx.filter = 'blur(' + Math.max(1, Math.round(Math.min(W, H) / 400)) + 'px)';
+  if(t.paintThin){
+    skPaint(lctx, mine.filter(st => st.size >= SK_THIN), W, H, t.paint);
+    skPaint(lctx, mine.filter(st => st.size <  SK_THIN), W, H, t.paintThin);
+  }else{
+    skPaint(lctx, mine, W, H, t.paint);
+  }
+  lctx.filter = 'none';
+  // Clip the paint back to the stroke exactly. The blur carries colour a few
+  // pixels past the edge, and those pixels lie outside the mask — where
+  // nothing is regenerated, so they survive verbatim into the result. Measured
+  // 2026-08-20: without this, a drawn canopy came back wearing a green halo
+  // against the sky.
+  //
+  // The clip is built whole on its own canvas first. destination-in composites
+  // once per drawing operation, so stroking the shapes straight onto the layer
+  // would intersect them instead of uniting them — two strokes came back as
+  // only the patch where they crossed.
+  const clip = document.createElement('canvas');
+  clip.width = W; clip.height = H;
+  skPaint(clip.getContext('2d'), mine, W, H, '#fff');
+  lctx.globalCompositeOperation = 'destination-in';
+  lctx.drawImage(clip, 0, 0);
+  ctx.drawImage(lay, 0, 0);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+
+// Decoded through a blob URL rather than straight off the server, because a
+// cross-origin image taints the canvas it is drawn on and toBlob then throws.
+function skLoadImage(blob){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error('decode failed'));
+    im.src = url;
+  });
+}
+
 // Masks are exported at the source's own aspect ratio, capped on the long edge:
 // the sampler rescales the mask to the latent anyway, but a mask with a
 // different aspect ratio would arrive stretched.
@@ -1456,16 +1536,74 @@ function skWorkSize(w, h, megapixels){
   return err(legacy[0], legacy[1]) <= err(best.w, best.h) + 1e-9 ? legacy : [best.w, best.h];
 }
 
-function skMaskBlob(type, W, H){
+// The mask is the drawing plus a margin, and the margin is the whole point.
+//
+// A mask that hugs the stroke exactly forces every leaf inside a solid blob, so
+// a drawn canopy comes back as a dense ball with no branches and no shadow —
+// the same tree, generated with no mask at all, comes back airy and casts one.
+// Measured 2026-08-20 against the untouched frame, outside the drawn shape:
+//
+//   margin        the tree                far houses   road
+//   0             a solid ball                  3.19   3.86
+//   5%            natural, casts a shadow       8.55   5.51
+//   11%           real branching structure     19.23   7.86
+//   no mask       real branching structure     13.52  14.17
+//
+// So it is one dial, not a choice: room for the tree is paid for in scenery
+// that gets regenerated with it. 5% buys most of the tree for little of the
+// frame, which is why it is the default.
+//
+// This is the "shadow room" that failed in August and had to be pulled — it
+// grew a second tree in ground that was only meant to be shaded. It works now
+// because the frame that goes up is painted: the grown ring shows ground and
+// sky, so there is nothing there inviting a second tree. Without the paint,
+// do not bring this back.
+function skMaskBlob(type, W, H, grow){
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   const mine = SK.strokes.filter(s => s.type === type);
-  // The mask is exactly what was drawn: the thing goes where the stroke is, and
-  // its shadow is left to the model, the same as every other shadow in the frame.
-  skPaint(ctx, mine, W, H, '#fff');
+  skPaint(ctx, mine, W, H, '#fff', Math.max(0, grow || 0));
   return new Promise(r => c.toBlob(r, 'image/png'));
+}
+
+// How many separate things were drawn — not how many strokes it took to draw
+// them. Strokes that touch are one object.
+//
+// This used to count strokes, and it was harmless while the drawing was only a
+// mask: a canopy blob and a trunk line really were two marks in two places.
+// Once the drawing became a shape the model reads, it stopped being harmless.
+// A tree drawn the natural way — one fat stroke for the crown, one thin one for
+// the trunk — counted as two, so the prompt asked for "trees", and the run came
+// back with the painted crown untouched and a second tree grown beside it.
+// Measured 2026-08-20, and it is the whole reason that frame failed.
+function skGroupCount(strokes){
+  const img = $('skImg');
+  const W = img.naturalWidth || 1, H = img.naturalHeight || 1;
+  const short = Math.min(W, H);
+  // Points are normalised to each side; put both on the short side's scale so
+  // one distance means the same thing horizontally and vertically.
+  const sx = W / short, sy = H / short;
+  const rad = st => (Math.max(2, st.size / 100 * short + 2) / 2) / short;
+  const parent = strokes.map((_, i) => i);
+  const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  for(let i = 0; i < strokes.length; i++){
+    for(let j = i + 1; j < strokes.length; j++){
+      if(find(i) === find(j)) continue;
+      const rr = rad(strokes[i]) + rad(strokes[j]);
+      let hit = false;
+      for(const a of strokes[i].pts){
+        for(const b of strokes[j].pts){
+          const dx = (a[0] - b[0]) * sx, dy = (a[1] - b[1]) * sy;
+          if(dx*dx + dy*dy <= rr*rr){ hit = true; break; }
+        }
+        if(hit) break;
+      }
+      if(hit) parent[find(i)] = find(j);
+    }
+  }
+  return new Set(strokes.map((_, i) => find(i))).size;
 }
 
 // Passes in the order the types were first drawn, so the list on screen and the
@@ -1474,13 +1612,13 @@ function skMaskBlob(type, W, H){
 // in the frame to grow up and meet — then by the order the types were drawn, so
 // anything the table treats as equal still renders in the order it was sketched.
 function skPasses(){
-  const drawn = [], count = {};
+  const drawn = [], byType = {};
   for(const s of SK.strokes){
-    if(!count[s.type]){ drawn.push(s.type); count[s.type] = 0; }
-    count[s.type]++;
+    if(!byType[s.type]){ drawn.push(s.type); byType[s.type] = []; }
+    byType[s.type].push(s);
   }
   return drawn
-    .map((t, i) => ({ type: t, count: count[t], order: SK_TYPE_BY_ID[t].order, seq: i }))
+    .map((t, i) => ({ type: t, count: skGroupCount(byType[t]), order: SK_TYPE_BY_ID[t].order, seq: i }))
     .sort((a, b) => (a.order - b.order) || (a.seq - b.seq));
 }
 
@@ -1490,8 +1628,10 @@ function skRefreshPrompt(){
 }
 
 function skRefreshUI(){
+  // The badge counts things, the same way the prompt does, so the number on the
+  // chip is the number the model will be asked for.
   const counts = {};
-  SK.strokes.forEach(s => counts[s.type] = (counts[s.type] || 0) + 1);
+  skPasses().forEach(p => counts[p.type] = p.count);
 
   const chips = $('skChips');
   chips.innerHTML = '';
@@ -1544,6 +1684,15 @@ function skSetStage(which){
   $('cmp').style.display = (on && which === 'sketch') ? 'none' : '';
   document.querySelectorAll('#stageTabs .stg').forEach(b => b.classList.toggle('active', b.dataset.stg === which));
   if(on && which === 'sketch') skFitCanvas();
+}
+
+// The two scopes use different controls, and a control that does nothing is
+// worse than no control — the Feather box sat there for weeks doing nothing.
+function skSyncScope(){
+  const full = $('skScope').value !== 'masked';
+  $('skDenoiseField').style.display = full ? '' : 'none';
+  $('skRoomField').style.display = full ? 'none' : '';
+  $('skLockField').style.display = full ? 'none' : '';
 }
 
 function skSyncMode(){
@@ -1614,7 +1763,14 @@ function skSyncMode(){
   // box under the canvas. The image is object-fit:contain so it re-centres
   // itself; the canvas is absolutely positioned and would not, and every stroke
   // after that would land somewhere else in the mask than on screen.
-  new ResizeObserver(() => { if(SK.stage === 'sketch') skFitCanvas(); }).observe($('skWrap'));
+  // Held on SK rather than left unreferenced, which engines have been known to
+  // collect. There is nothing to observe it from otherwise, and a stage whose
+  // overlay stops following it puts every later stroke somewhere else in the
+  // mask than on screen.
+  SK.ro = new ResizeObserver(() => { if(SK.stage === 'sketch') skFitCanvas(); });
+  SK.ro.observe($('skWrap'));
+  $('skScope').addEventListener('change', skSyncScope);
+  skSyncScope();
   skRefreshUI();
 })();
 
@@ -1632,7 +1788,25 @@ async function runSketchPasses(){
   if(!passes.length){ log('ยังไม่ได้วาดอะไรลงไป — เลือกชนิดแล้วลากทับตำแหน่งที่ต้องการก่อน', 'err'); return; }
 
   const [mw, mh] = skMaskSize();
-  const feather = Math.round(Math.min(mw, mh) * (parseFloat($('skFeather').value) || 0) / 100);
+  // Two ways to run, and peetz chose the first on 2026-08-20 after seeing both.
+  //
+  // full   — no mask at all, denoise below 1. The model reads the painted frame
+  //          and rewrites the whole picture from it, so the tree grows branches,
+  //          breaks its own outline and throws a shadow. The scenery pays: the
+  //          road and the far houses come back regenerated. Measured against the
+  //          untouched frame, outside the drawn shape: road 14.17, far houses
+  //          13.52, chairs 5.10 — the building and the furniture barely move,
+  //          the distance does.
+  // masked  — the mask holds everything outside it, so the frame is exact and
+  //          the canopy is a solid ball, because every leaf has to fit inside
+  //          what was drawn. Room around the stroke buys some of it back.
+  //
+  // Proportions are identical either way: node 45 is handed both sides already
+  // multiples of 16 and holding the source's ratio, so nothing is cropped and
+  // the frame comes out of the VAE the shape it went in. Measured 1968x1056
+  // in, 1312x704 out, 1.863636 both.
+  const full = $('skScope').value !== 'masked';
+  const room = Math.round(Math.min(mw, mh) * (parseFloat($('skRoom').value) || 0) / 100);
   const seed = parseInt($('skSeed').value);
   const img = $('skImg');
   const common = {
@@ -1643,22 +1817,35 @@ async function runSketchPasses(){
     // works at one size, so chaining cannot drift the proportions either.
     scaleTo: skWorkSize(img.naturalWidth, img.naturalHeight, parseFloat($('skMegapixels').value)),
     lockOutside: $('skLock').checked,
-    maskFeather: feather
+    // Below 1 the sampler starts from the painted frame instead of from noise,
+    // which is what lets the drawing steer a run that has no mask to steer it.
+    denoise: full ? parseFloat($('skDenoise').value) : 1,
+    // FeatherMask fades the mask image's own four borders inward — it has
+    // nothing to do with the edge around a stroke, so it was never softening
+    // the seam it was labelled for. Left at zero rather than pretending.
+    maskFeather: 0
   };
 
   const stamp = Date.now();
-  let inputName = state.uploadedName;
+  // The frame each pass starts from, as a decoded image rather than a name:
+  // every pass stamps its own strokes into it before sending it up, so the
+  // silhouette reaches the model as pixels and not only as a permission.
+  let curImg = img;
   let last = null;
 
   for(let i = 0; i < passes.length; i++){
     const p = passes[i];
-    log('รอบที่ ' + (i+1) + '/' + passes.length + ' · ' + SK_TYPE_BY_ID[p.type].label + ' · ' + p.count + ' จุด');
+    log('รอบที่ ' + (i+1) + '/' + passes.length + ' · ' + SK_TYPE_BY_ID[p.type].label + ' · ' + p.count
+      + ' ชิ้น · ' + (full ? 'เจนทั้งภาพ denoise ' + common.denoise.toFixed(2) : 'เฉพาะรอบที่วาด'));
 
-    let maskName;
+    let inputName, maskName;
     try{
-      maskName = await uploadBlob(await skMaskBlob(p.type, mw, mh), 'sketchmask_' + stamp + '_' + p.type + '.png');
+      const [ww, wh] = common.scaleTo;
+      inputName = await uploadBlob(await skPaintedBlob(curImg, p.type, ww, wh), 'sketchpaint_' + stamp + '_' + p.type + '.png');
+      maskName  = full ? undefined
+        : await uploadBlob(await skMaskBlob(p.type, mw, mh, room), 'sketchmask_' + stamp + '_' + p.type + '.png');
     }catch(e){
-      log('อัปโหลด mask ไม่สำเร็จ: ' + e.message, 'err');
+      log('อัปโหลดภาพที่วาดไม่สำเร็จ: ' + e.message, 'err');
       break;
     }
 
@@ -1674,14 +1861,15 @@ async function runSketchPasses(){
     if(!img){ log('หยุดที่รอบ ' + (i+1) + ' — ผลของรอบก่อนหน้ายังใช้ได้', 'err'); break; }
     last = img;
 
-    // Feed this pass into the next one. LoadImage reads ComfyUI's input folder
-    // and SaveImage writes to its output folder, so the frame has to come back
-    // over /view and go up again rather than be referenced by name.
+    // Feed this pass into the next one. SaveImage writes to ComfyUI's output
+    // folder and LoadImage reads its input folder, so the frame has to come
+    // back over /view — and it comes back as an image rather than a name
+    // because the next pass has to draw on it.
     if(i < passes.length - 1){
       try{
         const res = await fetch(viewUrlFor(img));
         if(!res.ok) throw new Error('HTTP ' + res.status);
-        inputName = await uploadBlob(await res.blob(), 'sketchstep_' + stamp + '_' + i + '.png');
+        curImg = await skLoadImage(await res.blob());
       }catch(e){
         log('ส่งภาพต่อเข้ารอบถัดไปไม่ได้: ' + e.message, 'err');
         break;
@@ -1757,6 +1945,7 @@ $('btnRandSeedPeople').addEventListener('click', ()=>{
 
 btnRun.addEventListener('click', runWorkflow);
 $('btnUpscaleResult').addEventListener('click', upscaleLastResult);
+$('btnSketchResult').addEventListener('click', sketchLastResult);
 
 // The working size for whichever mode is about to run, from the frame that was
 // uploaded. Sketch to Add has done this since 2026-08-19; the other flux2 modes
@@ -1904,7 +2093,35 @@ function showRunResult(img){
   state.lastResult = img;
   const up = $('btnUpscaleResult');
   if(up) up.disabled = !state.connected;
+  const sk = $('btnSketchResult');
+  if(sk) sk.disabled = !state.connected;
   $('actionsBottom').style.display = 'flex';
+}
+
+// Send the frame that was just produced into Sketch to Add, as its source.
+//
+// The route peetz works in is Skp to Render, then Sketch to Add, then Upscale,
+// and every hop used to mean downloading the result and dropping it back in as
+// a new upload. handleFile does exactly the right thing with it — it becomes
+// the new original, the compare slider's before, and the sketch canvas's
+// backdrop — so this only has to fetch it and hand it over.
+async function sketchLastResult(){
+  if(!state.lastResult){ log('ยังไม่มีภาพผลลัพธ์ให้วาดทับ', 'err'); return; }
+  const btn = $('btnSketchResult');
+  btn.disabled = true;
+  try{
+    log('ส่งภาพผลลัพธ์เข้าโหมด Sketch to Add...');
+    const res = await fetch(viewUrlFor(state.lastResult));
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const file = new File([await res.blob()], 'sketch_' + Date.now() + '.png', { type:'image/png' });
+    document.querySelector('.wf-opt[data-wf="sketch"]').click();
+    await handleFile(file);
+    $('paramsCardSketch').scrollIntoView({ behavior:'smooth', block:'start' });
+  }catch(e){
+    log('ส่งภาพเข้าโหมดวาดไม่สำเร็จ: ' + e.message, 'err');
+  }
+  btn.disabled = false;
+  updateRunEnabled();
 }
 
 // Send the frame that was just produced straight into SSS Upscale.
