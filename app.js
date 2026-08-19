@@ -1346,22 +1346,45 @@ function skPaintGrown(ctx, strokes, W, H, type, colour){
   skPaint(ctx, strokes, W, H, colour, grow * short, 0);
 }
 
+// A reusable offscreen canvas. Two of these are kept rather than allocated per
+// redraw, because a redraw happens on every pointermove.
+function skLayer(key, W, H){
+  const c = SK[key] || (SK[key] = document.createElement('canvas'));
+  if(c.width !== W || c.height !== H){ c.width = W; c.height = H; }
+  else c.getContext('2d').clearRect(0, 0, W, H);
+  return c;
+}
+
 function skRedraw(){
   const cv = $('skCanvas');
   if(!cv.width) return;
   const ctx = cv.getContext('2d');
   ctx.clearRect(0, 0, cv.width, cv.height);
   const all = SK.cur ? SK.strokes.concat([SK.cur]) : SK.strokes;
-  // The grown area is drawn faintly as well, because it is part of what gets
-  // regenerated — someone who cannot see it cannot tell why the frame changed
-  // where it did, and cannot tell whether the shadow has room to land.
-  ctx.globalAlpha = 0.14;
-  for(const t of new Set(all.map(s => s.type))){
-    skPaintGrown(ctx, all.filter(s => s.type === t), cv.width, cv.height, t, SK_TYPE_BY_ID[t].color);
+
+  if(all.length){
+    // Each layer is painted opaque into its own canvas and composited once.
+    // Setting globalAlpha and painting straight onto the stage looks the same
+    // for a single stamp and is wrong for everything else: the grown area is
+    // laid down as a few dozen overlapping stamps, and stacking those at 0.14
+    // apiece measured alpha 247 out of 255 — a hint meant to be faint arrived
+    // as a solid slab, more opaque than the stroke it was supposed to sit
+    // behind, which is why the brush ring looked far too small next to it.
+    const grown = skLayer('layerGrown', cv.width, cv.height);
+    const gx = grown.getContext('2d');
+    for(const t of new Set(all.map(s => s.type))){
+      skPaintGrown(gx, all.filter(s => s.type === t), cv.width, cv.height, t, SK_TYPE_BY_ID[t].color);
+    }
+    const marks = skLayer('layerMarks', cv.width, cv.height);
+    skPaint(marks.getContext('2d'), all, cv.width, cv.height, null);
+
+    // The grown area is shown at all because it is part of what gets
+    // regenerated — someone who cannot see it cannot tell whether the shadow
+    // has room to land.
+    ctx.globalAlpha = 0.16; ctx.drawImage(grown, 0, 0);
+    ctx.globalAlpha = 0.45; ctx.drawImage(marks, 0, 0);
+    ctx.globalAlpha = 1;
   }
-  ctx.globalAlpha = 0.42;
-  skPaint(ctx, all, cv.width, cv.height, null);
-  ctx.globalAlpha = 1;
   skCursor(ctx, cv.width, cv.height);
 }
 
