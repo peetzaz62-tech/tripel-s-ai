@@ -1212,19 +1212,9 @@ refreshPeoplePrompt();
 // One pass per element type, chained: pass two edits pass one's output. Types
 // are not merged into a single pass because one sentence asking for trees and
 // cars puts trees in the car mask and cars in the tree mask.
-// Canopy and trunk are separate types, peetz's idea, because one sentence
-// covering both is what left trees floating. A stroke round the canopy and a
-// thin one down to the ground share the mask of a single "tree" pass, so both
-// regions get "a real tree standing on the ground with a trunk, a branching
-// structure and a full leafy canopy" — which the narrow lower strip can satisfy
-// by continuing the road behind it as easily as by growing a trunk, and did.
-// Split apart, the lower strip gets a sentence about a trunk meeting the ground
-// and nothing else. Whole "tree" stays for anything small or far enough away to
-// draw in one blob.
 //
-// `order` is the pass order, not the draw order: the canopy is rendered first
-// so that when the trunk pass runs, the canopy is already in the frame for the
-// trunk to grow up and meet.
+// `order` is the pass order, not the draw order, so a type that needs another
+// already in the frame can say so.
 // Two colours per type, and they are not the same thing. `color` is the chip
 // and the overlay on screen, chosen to be told apart at a glance. `paint` is
 // what is stamped into the frame that goes up to the model, and it is
@@ -1237,8 +1227,14 @@ const SK_TYPES = [
   // a trunk or a branch by construction — the brush has to be wound right down
   // to draw one — so the thin ones are stamped in bark instead.
   { id:'tree',   label:'ต้นไม้',   color:'#3FA34D', paint:'#3A682C', paintThin:'#5C442C', order:1 },
-  { id:'canopy', label:'พุ่มใบ',   color:'#6FBF4A', paint:'#3A682C', order:1 },
-  { id:'trunk',  label:'ลำต้น',    color:'#8B5E34', paint:'#5C442C', order:2 },
+  // พุ่มใบ and ลำต้น were here until 2026-08-20. They existed for one reason:
+  // a stroke round a whole tree came back as a canopy with no trunk, so the
+  // two halves had to be asked for separately. Painting the stroke into the
+  // frame fixed that, and one chip now gives the trunk the drawing asks for.
+  // Splitting became actively worse: with the default scope each chip is a
+  // whole-frame pass, so two chips means the scenery is regenerated twice.
+  // peetz's own run proved it — canopy and trunk failed exactly as the single
+  // chip did, so the split was never what stood between him and a tree.
   { id:'rock',   label:'หิน',      color:'#8A8F98', paint:'#807C76', order:1 },
   { id:'people', label:'คน',       color:'#E0632F', paint:'#68635E', order:3 },
   { id:'car',    label:'รถ',       color:'#2D6CDF', paint:'#96989C', order:3 },
@@ -1267,18 +1263,6 @@ const SK_WHAT = {
   tree: n => n === 1
     ? `The only change is that a tree now grows in it: a real tree standing on the ground with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around it.`
     : `The only change is that trees now grow in it: real trees standing on the ground, each with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around them.`,
-  // Says nothing about a trunk or about the ground. This region is the crown
-  // and only the crown; whatever holds it up is the trunk pass's problem, and
-  // mentioning it here is what let foliage wander down the trunk's strip.
-  canopy: n => n === 1
-    ? `The only change is that the leafy crown of a tree now fills it: dense foliage carried on spreading branches, thinning to open sky at its edges, at a believable size for the space around it.`
-    : `The only change is that the leafy crowns of trees now fill it: dense foliage carried on spreading branches, thinning to open sky at their edges, at a believable size for the space around them.`,
-  // The two clauses that matter: it reaches the ground at the bottom, and it
-  // reaches the foliage at the top. Both ends are named because both ends are
-  // where the previous attempts stopped short.
-  trunk: n => n === 1
-    ? `The only change is that the trunk of a tree now rises through it: real bark on a single upright stem, standing on the ground at its foot where it meets the surface it grows out of, and carrying its branches up into the foliage above, at a believable thickness for its height.`
-    : `The only change is that the trunks of trees now rise through it: real bark on upright stems, each standing on the ground at its foot where it meets the surface it grows out of, and carrying its branches up into the foliage above, at a believable thickness for its height.`,
   rock: n => n === 1
     ? `The only change is that a natural rock now rests on the ground: weathered stone sitting where it lies, at a believable size for the space around it.`
     : `The only change is that natural rocks now rest on the ground: weathered stone sitting where it lies, at a believable size for the space around them.`,
@@ -1481,6 +1465,43 @@ function skPaintedBlob(imgEl, type, W, H){
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
 
+// How far a pass moved the picture, as a mean absolute difference per channel.
+//
+// This mode has one failure that looks exactly like success: the sampler runs
+// its full time and hands back the frame it was given, drawn shape and all.
+// Measured 2026-08-20 on peetz's own runs, result against the painted frame
+// that went up: 2.30, 3.05 and 3.10 where nothing happened, against 8.83, 9.13
+// and 15.35 where a tree grew. Everything below about 3 is the VAE round trip
+// and nothing else, so anything under SK_MOVED did not happen.
+const SK_MOVED = 4.5;
+
+async function skPassMoved(paintedBlob, resultImg){
+  try{
+    const [a, b] = await Promise.all([
+      skLoadImage(paintedBlob),
+      fetch(viewUrlFor(resultImg)).then(r => r.blob()).then(skLoadImage)
+    ]);
+    const W = a.naturalWidth, H = a.naturalHeight;
+    if(!W || b.naturalWidth !== W || b.naturalHeight !== H) return null;
+    const px = im => {
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const x = c.getContext('2d', { willReadFrequently:true });
+      x.drawImage(im, 0, 0, W, H);
+      return x.getImageData(0, 0, W, H).data;
+    };
+    const pa = px(a), pb = px(b);
+    let sum = 0;
+    for(let i = 0; i < W*H; i++){
+      sum += (Math.abs(pa[i*4] - pb[i*4]) + Math.abs(pa[i*4+1] - pb[i*4+1]) + Math.abs(pa[i*4+2] - pb[i*4+2])) / 3;
+    }
+    return sum / (W*H);
+  }catch(e){
+    // A measurement that cannot be taken must not stop a run that succeeded.
+    return null;
+  }
+}
+
 // Decoded through a blob URL rather than straight off the server, because a
 // cross-origin image taints the canvas it is drawn on and toBlob then throws.
 function skLoadImage(blob){
@@ -1524,14 +1545,41 @@ function skWorkSize(w, h, megapixels){
   const legacy = [Math.max(16, Math.floor(Math.round(w * s) / 16) * 16),
                   Math.max(16, Math.floor(Math.round(h * s) / 16) * 16)];
 
+  // The megapixel setting is a budget, not a suggestion. Weighting proportion a
+  // thousand times above pixel count used to let an exact-ratio candidate win
+  // however far over budget it was, and for a source already aligned to 16 the
+  // exact-ratio candidate is the source itself: "1 MP" handed back 1504x816,
+  // 17% over. That is not a rounding detail. Sketch to Add runs img2img, whose
+  // strength is quantised to whole sampler steps, and how much of the schedule
+  // one step is worth moves with the canvas — 1504x816 needed 19 steps of 20 to
+  // change anything at all where 1312x704 needed 17. A canvas that quietly
+  // grows past what was measured takes the settings out from under the user.
+  //
+  // So: nothing over budget, then the truest proportion, then the closest to
+  // the budget. 1504x816 at 1 MP now lands on 1328x720 — 0.07% off in
+  // proportion, which is a pixel and a half across the frame.
+  // Truest proportion first, then as many pixels as that allows. Scoring the
+  // two against each other with a weight was the mistake: any weight either
+  // buys a rounding-error's worth of proportion with a quarter of the
+  // resolution, or the reverse. Ranking them instead — smallest error wins, and
+  // among the ones that tie within a rounding error, the largest — needs no
+  // weight and gives a defensible answer at every aspect tried.
   const centre = Math.round(Math.sqrt(target / aspect) / 16) * 16;
-  let best = null;
-  for(let hh = centre - 64; hh <= centre + 64; hh += 16){
+  const cands = [];
+  for(let hh = centre - 128; hh <= centre + 128; hh += 16){
     if(hh < 64) continue;
     const ww = Math.max(64, Math.round(hh * aspect / 16) * 16);
-    const score = err(ww, hh) * 1000 + Math.abs(ww * hh - target) / target;
-    if(!best || score < best.score) best = { w: ww, h: hh, score };
+    if(ww * hh > target * 1.06) continue;
+    cands.push({ w: ww, h: hh, e: err(ww, hh) });
   }
+  // The legacy size floors both sides, so it is always inside the budget and
+  // there is always something to fall back to.
+  if(!cands.length) return legacy;
+  const floor = Math.min(...cands.map(c => c.e));
+  // 0.05% of proportion is well under a pixel across a 1500px frame. Anything
+  // looser started trading a visible 16:9 frame away for 18% more pixels.
+  const tied = cands.filter(c => c.e <= floor + 0.0005);
+  const best = tied.reduce((a, b) => (b.w * b.h > a.w * a.h ? b : a));
   // Only move the canvas when moving it actually buys a truer proportion.
   return err(legacy[0], legacy[1]) <= err(best.w, best.h) + 1e-9 ? legacy : [best.w, best.h];
 }
@@ -1806,6 +1854,8 @@ async function runSketchPasses(){
   // the frame comes out of the VAE the shape it went in. Measured 1968x1056
   // in, 1312x704 out, 1.863636 both.
   const full = $('skScope').value !== 'masked';
+  const skSteps = $('skTurbo').value === 'quality' ? 20 : 8;
+  const skDenoiseVal = parseFloat($('skDenoise').value);
   const room = Math.round(Math.min(mw, mh) * (parseFloat($('skRoom').value) || 0) / 100);
   const seed = parseInt($('skSeed').value);
   const img = $('skImg');
@@ -1819,7 +1869,21 @@ async function runSketchPasses(){
     lockOutside: $('skLock').checked,
     // Below 1 the sampler starts from the painted frame instead of from noise,
     // which is what lets the drawing steer a run that has no mask to steer it.
-    denoise: full ? parseFloat($('skDenoise').value) : 1,
+    //
+    // SplitSigmasDenoise cuts on whole steps — round(steps * denoise) — so the
+    // slider is a step count wearing a percentage, and the top of it is a
+    // cliff, not a notch: skip nothing and the run starts from pure noise, and
+    // the frame the user drew on is thrown away entirely. Quality's 20 steps
+    // put that at 0.975, which the field's own maximum keeps out of reach;
+    // Turbo's 8 steps put it at 0.94, which it does not.
+    //
+    // 1.00 is not the top of that range, it is the other side of the graph:
+    // the source latent is dropped for an empty one and the whole frame is
+    // drawn again, with the painted frame reaching the model only as
+    // ReferenceLatent. peetz asked for it on 2026-08-20 and it is the default.
+    // Anything below 1 is still img2img and still clamps to one step short, so
+    // a value can never round its way into a full redraw by accident.
+    denoise: full ? (skDenoiseVal >= 1 ? 1 : Math.min(skDenoiseVal, (skSteps - 0.6) / skSteps)) : 1,
     // FeatherMask fades the mask image's own four borders inward — it has
     // nothing to do with the edge around a stroke, so it was never softening
     // the seam it was labelled for. Left at zero rather than pretending.
@@ -1836,12 +1900,17 @@ async function runSketchPasses(){
   for(let i = 0; i < passes.length; i++){
     const p = passes[i];
     log('รอบที่ ' + (i+1) + '/' + passes.length + ' · ' + SK_TYPE_BY_ID[p.type].label + ' · ' + p.count
-      + ' ชิ้น · ' + (full ? 'เจนทั้งภาพ denoise ' + common.denoise.toFixed(2) : 'เฉพาะรอบที่วาด'));
+      + ' ชิ้น · ' + (full
+        ? (common.denoise >= 1
+            ? 'วาดใหม่ทั้งภาพ ' + skSteps + ' สเต็ป'
+            : 'เจนทั้งภาพ denoise ' + common.denoise.toFixed(2) + ' = ' + Math.round(skSteps * common.denoise) + '/' + skSteps + ' สเต็ป')
+        : 'เฉพาะรอบที่วาด'));
 
-    let inputName, maskName;
+    let inputName, maskName, painted;
     try{
       const [ww, wh] = common.scaleTo;
-      inputName = await uploadBlob(await skPaintedBlob(curImg, p.type, ww, wh), 'sketchpaint_' + stamp + '_' + p.type + '.png');
+      painted = await skPaintedBlob(curImg, p.type, ww, wh);
+      inputName = await uploadBlob(painted, 'sketchpaint_' + stamp + '_' + p.type + '.png');
       maskName  = full ? undefined
         : await uploadBlob(await skMaskBlob(p.type, mw, mh, room), 'sketchmask_' + stamp + '_' + p.type + '.png');
     }catch(e){
@@ -1860,6 +1929,12 @@ async function runSketchPasses(){
 
     if(!img){ log('หยุดที่รอบ ' + (i+1) + ' — ผลของรอบก่อนหน้ายังใช้ได้', 'err'); break; }
     last = img;
+
+    const moved = await skPassMoved(painted, img);
+    if(moved !== null && moved < SK_MOVED){
+      log('รอบนี้ AI คืนภาพเดิมกลับมา — สิ่งที่วาดยังเป็นสีแบนอยู่ (วัดได้ ' + moved.toFixed(2) + ' ซึ่งคือระดับที่ไม่มีอะไรเกิดขึ้นเลย)', 'err');
+      log('ผืนผ้าใบยิ่งใหญ่ ยิ่งต้องใช้ denoise สูงขึ้น — ลองเพิ่ม denoise ทีละ 0.05 หรือลด Output resolution ลง');
+    }
 
     // Feed this pass into the next one. SaveImage writes to ComfyUI's output
     // folder and LoadImage reads its input folder, so the frame has to come
