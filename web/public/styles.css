@@ -404,7 +404,7 @@
     display:flex;align-items:center;justify-content:center;
   }
 #view-app .sk-stagewrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
-#view-app .sk-stagewrap canvas{position:absolute;cursor:crosshair;touch-action:none;}
+#view-app .sk-stagewrap canvas{position:absolute;cursor:none;touch-action:none;}
 #view-app .sk-empty{color:#ffffff66;font-size:12.5px;font-family:var(--mono);text-align:center;padding:20px;letter-spacing:.3px;}
 #view-app .sk-note{font-size:11.5px;color:var(--ink-soft);line-height:1.65;
     border-left:2px solid var(--hair-strong);padding-left:10px;margin-bottom:14px;}

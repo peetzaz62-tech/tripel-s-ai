@@ -1267,7 +1267,7 @@ function buildSketchPromptP(p = {}){
 // ---- drawing surface -------------------------------------------------------
 // Strokes are stored in normalised 0..1 coordinates, so the same list redraws
 // correctly at preview scale and exports correctly at mask scale.
-const SK = { strokes: [], cur: null, type: SK_TYPES[0].id, stage: 'sketch' };
+const SK = { strokes: [], cur: null, hover: null, type: SK_TYPES[0].id, stage: 'sketch' };
 const SK_DESC = {};
 
 function skSetImage(url){
@@ -1362,6 +1362,44 @@ function skRedraw(){
   ctx.globalAlpha = 0.42;
   skPaint(ctx, all, cv.width, cv.height, null);
   ctx.globalAlpha = 1;
+  skCursor(ctx, cv.width, cv.height);
+}
+
+// The brush lays down a round stamp — measured 86x86 for a 10% brush, area
+// 0.998 of a true circle — but the pointer was a crosshair, which tells you
+// nothing about how much of the frame that stamp covers. So the pointer is the
+// stamp: a ring at its real size, with the grown area outlined below it, since
+// that outline is the difference between a tree that can cast a shadow and one
+// that cannot. Drawn last so it sits over the strokes, and never exported —
+// skMaskBlob paints through skPaintGrown alone.
+function skCursor(ctx, W, H){
+  if(!SK.hover) return;
+  const short = Math.min(W, H);
+  const rad = Math.max(2, parseFloat($('skBrush').value) / 100 * short) / 2;
+  const { grow, drop } = skApron(SK.type);
+  const x = SK.hover[0] * W, y = SK.hover[1] * H;
+  const gr = rad + grow * short, dy = drop * short;
+
+  ctx.save();
+  if(gr > rad + 0.5 || dy > 0.5){
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#ffffffcc';
+    ctx.beginPath();
+    ctx.arc(x, y, gr, Math.PI, 0);
+    ctx.lineTo(x + gr, y + dy);
+    ctx.arc(x, y + dy, gr, 0, Math.PI);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // A dark ring under a light one, so the cursor reads on a bright sky and on
+  // dark asphalt without knowing which it is over.
+  ctx.lineWidth = 3; ctx.strokeStyle = '#00000088';
+  ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2); ctx.stroke();
+  ctx.lineWidth = 1.4; ctx.strokeStyle = SK_TYPE_BY_ID[SK.type].color;
+  ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
 }
 
 // Masks are exported at the source's own aspect ratio, capped on the long edge:
@@ -1487,16 +1525,20 @@ function skSyncMode(){
     const p = at(e);
     if(!p) return;
     cv.setPointerCapture(e.pointerId);
+    SK.hover = p;
     SK.cur = { type: SK.type, size: parseFloat($('skBrush').value), pts: [p] };
     skRedraw();
   });
+  // Runs whether or not a stroke is in progress: the ring has to follow the
+  // pointer before the first press, which is when its size matters most.
   cv.addEventListener('pointermove', e => {
-    if(!SK.cur) return;
     const p = at(e);
     if(!p) return;
-    SK.cur.pts.push(p);
+    SK.hover = p;
+    if(SK.cur) SK.cur.pts.push(p);
     skRedraw();
   });
+  cv.addEventListener('pointerleave', () => { SK.hover = null; skRedraw(); });
   const finish = () => {
     if(!SK.cur) return;
     SK.strokes.push(SK.cur);
