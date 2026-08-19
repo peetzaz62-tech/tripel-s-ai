@@ -101,7 +101,7 @@ function buildSSSPrompt(opts){
   const steps = mode === 'quality' ? 20 : 8;
   const denoise = Number(opts.denoise);
   const img2img = denoise > 0 && denoise < 1;
-  return {
+  const g = {
     "125": { class_type:"LoadImage", inputs:{ image: opts.imageName } },
     // The exported workflow wires node 45 to the PreviewImage node (124), but
     // PreviewImage is an output node with no output slot, so ComfyUI rejects the
@@ -135,6 +135,40 @@ function buildSSSPrompt(opts){
 
     "9": { class_type:"SaveImage", inputs:{ images:["68:8",0], filename_prefix:"SSS" } }
   };
+
+  // Sketch to Add: regenerate only inside a drawn mask.
+  //
+  // SetLatentNoiseMask only means anything if the sampler starts from the
+  // source's own latent — an empty latent has no original for the mask to
+  // protect — so latent_image is repointed here rather than left on the
+  // empty-latent branch above. Measured 2026-08-19, adding a tree to a
+  // finished 3904x2112 exterior at the same seed, difference from the source:
+  //
+  //                inside mask     outside mask
+  //   no mask         45.9          29.5  (68% of pixels moved)
+  //   with mask       46.5          10.2  (27% of pixels moved)
+  //
+  // Inside is regenerated just as strongly either way; outside drops by two
+  // thirds. A hard mask edge shows as a seam, hence the feather.
+  if(opts.maskImage){
+    const f = Math.max(0, Math.round(opts.maskFeather || 0));
+    g["900"] = { class_type:"LoadImageMask", inputs:{ image: opts.maskImage, channel:"red" } };
+    g["902"] = { class_type:"FeatherMask", inputs:{ mask:["900",0], left:f, top:f, right:f, bottom:f } };
+    g["901"] = { class_type:"SetLatentNoiseMask", inputs:{ samples:["68:44",0], mask:["902",0] } };
+    g["68:13"].inputs.latent_image = ["901",0];
+
+    // That residual 10.2 is not drift: the whole frame still round-trips the
+    // VAE, so outside the mask reads as "the original, very slightly softer".
+    // Compositing the untouched pixels back makes it exact — but it also erases
+    // any shadow the new object throws beyond the mask, which is the one thing
+    // this mode exists to get right. Hence a choice, not the default.
+    if(opts.lockOutside){
+      g["903"] = { class_type:"ImageCompositeMasked", inputs:{
+        destination:["45",0], source:["68:8",0], x:0, y:0, resize_source:false, mask:["902",0] } };
+      g["9"].inputs.images = ["903",0];
+    }
+  }
+  return g;
 }
 const SAVE_IMAGE_NODE_ID_SSS = "9";
 
@@ -1129,6 +1163,8 @@ document.querySelectorAll('.wf-opt').forEach(el=>{
     $('paramsCardMagnific').style.display = state.workflow === 'magnific' ? '' : 'none';
     $('paramsCardSSS').style.display = state.workflow === 'sss' ? '' : 'none';
     $('paramsCardPeople').style.display = state.workflow === 'people' ? '' : 'none';
+    $('paramsCardSketch').style.display = state.workflow === 'sketch' ? '' : 'none';
+    skSyncMode();
   });
 });
 
@@ -1152,6 +1188,366 @@ function refreshPeoplePrompt(){
 }
 ['apPose','apCount','apDesc'].forEach(id=>$(id).addEventListener('input', refreshPeoplePrompt));
 refreshPeoplePrompt();
+
+// ---------------------------------------------------------------------------
+// SSS Sketch to Add — the mask says where, the prompt says what.
+//
+// The whole point of the mask is that it carries the position, so the text
+// never has to. Every earlier attempt at "put a thing here" failed on the same
+// rule (see the interior lighting work): naming a thing in a prompt makes it
+// appear everywhere, and naming a colour to mark it paints the frame that
+// colour. With a mask deciding where, the sentence only has to describe what,
+// and that failure mode disappears rather than being worked around.
+//
+// One pass per element type, chained: pass two edits pass one's output. Types
+// are not merged into a single pass because one sentence asking for trees and
+// cars puts trees in the car mask and cars in the tree mask.
+const SK_TYPES = [
+  { id:'tree',   label:'ต้นไม้',   color:'#3FA34D' },
+  { id:'rock',   label:'หิน',      color:'#8A8F98' },
+  { id:'people', label:'คน',       color:'#E0632F' },
+  { id:'car',    label:'รถ',       color:'#2D6CDF' },
+  { id:'animal', label:'สัตว์',    color:'#9B59B6' },
+  { id:'lamp',   label:'ดวงโคม',   color:'#E5B700' },
+  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5' }
+];
+const SK_TYPE_BY_ID = Object.fromEntries(SK_TYPES.map(t => [t.id, t]));
+
+// Same opening as Add People, which is already proven for "the input is a
+// finished photograph, add something to it".
+const SK_BASE = `This is a finished photograph. Leave it exactly as it is — the same place, the same objects in the same positions, the same materials, the same colours, the same lighting and the same camera. Nothing already in the frame is moved, replaced, restyled or removed.`;
+
+// The clause that answers "ผสาน แสง เงา mood ให้เข้ากับงานต้นฉบับ". It never
+// states a direction or a softness, it states that both match what is already
+// there — so it reads the source instead of being told what the source is.
+const SK_DAYLIT = ` It is lit by the light already in the frame, catching that light from the same direction as everything around it, and it casts its own shadow onto the ground in the same direction and with the same softness as the shadows already there.`;
+const SK_DAYLIT_PL = ` They are lit by the light already in the frame, catching that light from the same direction as everything around them, and they cast their own shadows onto the ground in the same direction and with the same softness as the shadows already there.`;
+
+// Light sources need the opposite clause: they give light rather than take it.
+const SK_EMIT = ` The light it gives off is the same colour temperature as the light already in the picture. Its glow spreads onto the surfaces immediately around it and fades away gradually; nothing further away in the frame changes exposure.`;
+
+const SK_WHAT = {
+  tree: n => n === 1
+    ? `The only change is that a tree now grows in it: a real tree standing on the ground with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around it.`
+    : `The only change is that trees now grow in it: real trees standing on the ground, each with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around them.`,
+  rock: n => n === 1
+    ? `The only change is that a natural rock now rests on the ground: weathered stone sitting where it lies, at a believable size for the space around it.`
+    : `The only change is that natural rocks now rest on the ground: weathered stone sitting where it lies, at a believable size for the space around them.`,
+  // Wording lifted from Add People, which was tuned over sixteen renders.
+  people: n => n === 1
+    ? `The only change is that a person is now present in it, at rest — seated if the picture already contains seating, otherwise standing — sharp and still, correctly scaled to the space and secondary to the place itself.`
+    : `The only change is that people are now present in it, at rest — seated if the picture already contains seating, otherwise standing — sharp and still, correctly scaled to the space and secondary to the place itself.`,
+  car: n => n === 1
+    ? `The only change is that a car now stands in it: an ordinary everyday road car, parked on the ground, correctly scaled to the space.`
+    : `The only change is that cars now stand in it: ordinary everyday road cars, parked on the ground, correctly scaled to the space.`,
+  animal: n => n === 1
+    ? `The only change is that an animal is now present in it: an ordinary animal that belongs in a place like this, standing on the ground, correctly scaled to the space.`
+    : `The only change is that animals are now present in it: ordinary animals that belong in a place like this, standing on the ground, correctly scaled to the space.`,
+  // "of the kind this place already uses" is the conditional form again: it
+  // makes the model read the room rather than invent a fitting for it.
+  lamp: n => n === 1
+    ? `The only change is that a light fitting is now mounted there and switched on: a fitting of the kind this place already uses, giving off light.`
+    : `The only change is that light fittings are now mounted there and switched on: fittings of the kind this place already uses, giving off light.`,
+  hidden: () => `The only change is that concealed lighting is now switched on there: the fitting itself stays completely out of sight, and only the light it throws across the surface is visible — an even wash, brightest closest to where it is concealed, fading away smoothly.`
+};
+const SK_EMITTING = { lamp:1, hidden:1 };
+
+function buildSketchPromptP(p = {}){
+  const type = SK_WHAT[p.type] ? p.type : 'tree';
+  const count = Math.max(1, Math.round(Number(p.count) || 1));
+  const tail = SK_EMITTING[type] ? SK_EMIT : (count === 1 ? SK_DAYLIT : SK_DAYLIT_PL);
+  const desc = String(p.desc || '').trim();
+  // Free text is appended rather than spliced in, so the wording that was
+  // actually rendered stays byte-for-byte intact.
+  const parts = [SK_BASE + ' ' + SK_WHAT[type](count) + tail];
+  if(desc) parts.push(`Additional Instructions:\n${desc}`);
+  return parts.join('\n\n');
+}
+
+// ---- drawing surface -------------------------------------------------------
+// Strokes are stored in normalised 0..1 coordinates, so the same list redraws
+// correctly at preview scale and exports correctly at mask scale.
+const SK = { strokes: [], cur: null, type: SK_TYPES[0].id, stage: 'sketch' };
+const SK_DESC = {};
+
+function skSetImage(url){
+  SK.strokes = []; SK.cur = null;
+  const img = $('skImg');
+  img.onload = () => {
+    img.style.display = '';
+    $('skCanvas').style.display = '';
+    $('skEmpty').style.display = 'none';
+    skFitCanvas();
+  };
+  img.src = url;
+  skRefreshUI();
+}
+
+// The image is object-fit:contain inside the stage, so the canvas has to be
+// placed over the letterboxed rectangle rather than over the whole box —
+// otherwise a stroke lands somewhere else in the mask than where it was drawn.
+function skFitCanvas(){
+  const img = $('skImg'), cv = $('skCanvas'), wrap = $('skWrap');
+  if(!img.naturalWidth || !wrap.clientWidth) return;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const s = Math.min(W / img.naturalWidth, H / img.naturalHeight);
+  const w = Math.max(1, Math.round(img.naturalWidth * s));
+  const h = Math.max(1, Math.round(img.naturalHeight * s));
+  cv.style.left = Math.round((W - w) / 2) + 'px';
+  cv.style.top  = Math.round((H - h) / 2) + 'px';
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  cv.width = w; cv.height = h;
+  skRedraw();
+}
+
+function skPaint(ctx, strokes, W, H, colour){
+  const short = Math.min(W, H);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for(const st of strokes){
+    ctx.strokeStyle = colour || SK_TYPE_BY_ID[st.type].color;
+    ctx.lineWidth = Math.max(2, st.size / 100 * short);
+    ctx.beginPath();
+    st.pts.forEach((p, i) => i ? ctx.lineTo(p[0]*W, p[1]*H) : ctx.moveTo(p[0]*W, p[1]*H));
+    // A single tap is still a dot, not nothing.
+    if(st.pts.length === 1) ctx.lineTo(st.pts[0][0]*W + 0.01, st.pts[0][1]*H);
+    ctx.stroke();
+  }
+}
+
+function skRedraw(){
+  const cv = $('skCanvas');
+  if(!cv.width) return;
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.globalAlpha = 0.42;
+  skPaint(ctx, SK.cur ? SK.strokes.concat([SK.cur]) : SK.strokes, cv.width, cv.height, null);
+  ctx.globalAlpha = 1;
+}
+
+// Masks are exported at the source's own aspect ratio, capped on the long edge:
+// the sampler rescales the mask to the latent anyway, but a mask with a
+// different aspect ratio would arrive stretched.
+function skMaskSize(){
+  const img = $('skImg');
+  const s = Math.min(1, 1536 / Math.max(img.naturalWidth, img.naturalHeight));
+  return [Math.max(8, Math.round(img.naturalWidth * s)), Math.max(8, Math.round(img.naturalHeight * s))];
+}
+
+function skMaskBlob(type, W, H){
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  skPaint(ctx, SK.strokes.filter(s => s.type === type), W, H, '#fff');
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+
+// Passes in the order the types were first drawn, so the list on screen and the
+// order they render in are the same thing.
+function skPasses(){
+  const order = [], count = {};
+  for(const s of SK.strokes){
+    if(!count[s.type]){ order.push(s.type); count[s.type] = 0; }
+    count[s.type]++;
+  }
+  return order.map(t => ({ type: t, count: count[t] }));
+}
+
+function skRefreshPrompt(){
+  const p = skPasses()[0];
+  $('skPrompt').value = p ? buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type] }) : '';
+}
+
+function skRefreshUI(){
+  const counts = {};
+  SK.strokes.forEach(s => counts[s.type] = (counts[s.type] || 0) + 1);
+
+  const chips = $('skChips');
+  chips.innerHTML = '';
+  SK_TYPES.forEach(t => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sk-chip' + (SK.type === t.id ? ' on' : '');
+    b.innerHTML = '<span class="sw" style="background:' + t.color + '"></span><span>' + t.label + '</span>'
+      + (counts[t.id] ? '<span class="n">' + counts[t.id] + '</span>' : '');
+    b.addEventListener('click', () => { SK.type = t.id; skRefreshUI(); });
+    chips.appendChild(b);
+  });
+
+  const list = $('skPassList');
+  list.innerHTML = '';
+  const passes = skPasses();
+  if(!passes.length){
+    const d = document.createElement('div');
+    d.className = 'sk-pass';
+    d.style.cssText = 'color:var(--ink-faint);font-size:12px;';
+    d.textContent = 'ยังไม่ได้วาดอะไรลงไป';
+    list.appendChild(d);
+  }else{
+    passes.forEach((p, i) => {
+      const t = SK_TYPE_BY_ID[p.type];
+      const row = document.createElement('div');
+      row.className = 'sk-pass';
+      row.innerHTML = '<span class="sw" style="background:' + t.color + '"></span>'
+        + '<span class="lbl">' + (i+1) + ' · ' + t.label + '</span>'
+        + '<span class="cnt">×' + p.count + '</span>';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = 'รายละเอียดเพิ่มเติม (ไม่ใส่ก็ได้)';
+      inp.value = SK_DESC[p.type] || '';
+      // Only the prompt preview is rebuilt while typing — rebuilding this list
+      // would take the focus out of the field on every keystroke.
+      inp.addEventListener('input', () => { SK_DESC[p.type] = inp.value; skRefreshPrompt(); });
+      row.appendChild(inp);
+      list.appendChild(row);
+    });
+  }
+  skRefreshPrompt();
+  updateRunEnabled();
+}
+
+function skSetStage(which){
+  SK.stage = which;
+  const on = state.workflow === 'sketch';
+  $('sketchStage').style.display = (on && which === 'sketch') ? 'flex' : 'none';
+  $('cmp').style.display = (on && which === 'sketch') ? 'none' : '';
+  document.querySelectorAll('#stageTabs .stg').forEach(b => b.classList.toggle('active', b.dataset.stg === which));
+  if(on && which === 'sketch') skFitCanvas();
+}
+
+function skSyncMode(){
+  const on = state.workflow === 'sketch';
+  $('stageTabs').style.display = on ? '' : 'none';
+  // Leaving the mode hides the canvas without going through skSetStage, which
+  // would record "result" as the stage to come back to and lose the drawing.
+  if(on){
+    skSetStage(SK.stage);
+  }else{
+    $('sketchStage').style.display = 'none';
+    $('cmp').style.display = '';
+  }
+  updateRunEnabled();
+}
+
+(function skInit(){
+  const cv = $('skCanvas');
+  const at = e => {
+    const r = cv.getBoundingClientRect();
+    return [
+      Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+      Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
+    ];
+  };
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    cv.setPointerCapture(e.pointerId);
+    SK.cur = { type: SK.type, size: parseFloat($('skBrush').value), pts: [at(e)] };
+    skRedraw();
+  });
+  cv.addEventListener('pointermove', e => {
+    if(!SK.cur) return;
+    SK.cur.pts.push(at(e));
+    skRedraw();
+  });
+  const finish = () => {
+    if(!SK.cur) return;
+    SK.strokes.push(SK.cur);
+    SK.cur = null;
+    skRedraw();
+    skRefreshUI();
+  };
+  cv.addEventListener('pointerup', finish);
+  cv.addEventListener('pointercancel', finish);
+
+  $('skUndo').addEventListener('click', () => { SK.strokes.pop(); skRedraw(); skRefreshUI(); });
+  $('skClear').addEventListener('click', () => { SK.strokes = []; skRedraw(); skRefreshUI(); });
+  $('skBrush').addEventListener('input', skRedraw);
+  document.querySelectorAll('#stageTabs .stg').forEach(b =>
+    b.addEventListener('click', () => skSetStage(b.dataset.stg)));
+  $('btnRandSeedSketch').addEventListener('click', () => {
+    $('skSeed').value = Math.floor(Math.random()*1_000_000_000);
+  });
+  // The stage resizes for reasons a window resize never reports — the chip row
+  // wraps to two lines the first time a count badge appears, which shortens the
+  // box under the canvas. The image is object-fit:contain so it re-centres
+  // itself; the canvas is absolutely positioned and would not, and every stroke
+  // after that would land somewhere else in the mask than on screen.
+  new ResizeObserver(() => { if(SK.stage === 'sketch') skFitCanvas(); }).observe($('skWrap'));
+  skRefreshUI();
+})();
+
+async function uploadBlob(blob, name){
+  const form = new FormData();
+  form.append('image', new File([blob], name, { type:'image/png' }));
+  form.append('overwrite', 'true');
+  const res = await fetch(baseUrl() + '/upload/image', { method:'POST', body: form });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return (await res.json()).name;
+}
+
+async function runSketchPasses(){
+  const passes = skPasses();
+  if(!passes.length){ log('ยังไม่ได้วาดอะไรลงไป — เลือกชนิดแล้วลากทับตำแหน่งที่ต้องการก่อน', 'err'); return; }
+
+  const [mw, mh] = skMaskSize();
+  const feather = Math.round(Math.min(mw, mh) * (parseFloat($('skFeather').value) || 0) / 100);
+  const seed = parseInt($('skSeed').value);
+  const common = {
+    mode: $('skTurbo').value,
+    guidance: parseFloat($('skGuidance').value),
+    megapixels: parseFloat($('skMegapixels').value),
+    lockOutside: $('skLock').checked,
+    maskFeather: feather
+  };
+
+  const stamp = Date.now();
+  let inputName = state.uploadedName;
+  let last = null;
+
+  for(let i = 0; i < passes.length; i++){
+    const p = passes[i];
+    log('รอบที่ ' + (i+1) + '/' + passes.length + ' · ' + SK_TYPE_BY_ID[p.type].label + ' · ' + p.count + ' จุด');
+
+    let maskName;
+    try{
+      maskName = await uploadBlob(await skMaskBlob(p.type, mw, mh), 'sketchmask_' + stamp + '_' + p.type + '.png');
+    }catch(e){
+      log('อัปโหลด mask ไม่สำเร็จ: ' + e.message, 'err');
+      break;
+    }
+
+    const img = await submitAndWait(buildSSSPrompt(Object.assign({}, common, {
+      imageName: inputName,
+      maskImage: maskName,
+      // A different seed per pass: the same one twice correlates what appears
+      // in two unrelated masks.
+      seed: seed + i,
+      prompt: buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type] })
+    })), SAVE_IMAGE_NODE_ID_SSS);
+
+    if(!img){ log('หยุดที่รอบ ' + (i+1) + ' — ผลของรอบก่อนหน้ายังใช้ได้', 'err'); break; }
+    last = img;
+
+    // Feed this pass into the next one. LoadImage reads ComfyUI's input folder
+    // and SaveImage writes to its output folder, so the frame has to come back
+    // over /view and go up again rather than be referenced by name.
+    if(i < passes.length - 1){
+      try{
+        const res = await fetch(viewUrlFor(img));
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        inputName = await uploadBlob(await res.blob(), 'sketchstep_' + stamp + '_' + i + '.png');
+      }catch(e){
+        log('ส่งภาพต่อเข้ารอบถัดไปไม่ได้: ' + e.message, 'err');
+        break;
+      }
+    }
+  }
+
+  if(last){
+    showRunResult(last);
+    skSetStage('result');
+  }
+}
 
 // upload handling
 const dropZone = $('dropZone'), fileInput = $('fileInput');
@@ -1179,6 +1575,7 @@ async function handleFile(file){
   $('previewImg').src = url;
   $('previewBox').style.display = 'block';
   showBeforeOnly(url);
+  skSetImage(url);
 
   try{
     const form = new FormData();
@@ -1196,7 +1593,10 @@ async function handleFile(file){
 }
 
 function updateRunEnabled(){
-  btnRun.disabled = !(state.connected && state.uploadedName);
+  // Sketch to Add has nothing to do until something is actually drawn — the
+  // mask is the instruction, so an empty canvas is an empty request.
+  const drawn = state.workflow !== 'sketch' || SK.strokes.length > 0;
+  btnRun.disabled = !(state.connected && state.uploadedName && drawn);
 }
 
 $('btnRandSeedMagnific').addEventListener('click', ()=>{
@@ -1216,6 +1616,16 @@ async function runWorkflow(){
   $('actionsBottom').style.display = 'none';
   if(state.origPreviewURL) showBeforeOnly(state.origPreviewURL);
   clearLog();
+
+  // Sketch to Add runs its own loop: one masked pass per element type, each
+  // starting from the previous pass's output, so it never reaches the
+  // single-graph path below.
+  if(state.workflow === 'sketch'){
+    await freeIfModelSwitch('flux2');
+    await runSketchPasses();
+    btnRun.disabled = false;
+    return;
+  }
 
   let prompt, saveImageNodeId;
   if(state.workflow === 'sss'){
@@ -1261,14 +1671,21 @@ async function runWorkflow(){
     saveImageNodeId = SAVE_IMAGE_NODE_ID_MAGNIFIC;
   }
 
-  // The Magnific graph loads flux1-dev-fp8; SSS/People load flux2_dev_fp8mixed.
-  // ComfyUI's own eviction didn't reliably swap these on the shared GPU box —
-  // measured 2026-08-17: a stale flux2 load left only 743MB/12.8GB VRAM free,
-  // so the flux1 load partially offloaded to system RAM and took 10x longer
-  // than normal. Forcing an unload only on an actual model-family switch (not
-  // on repeat runs of the same workflow) avoids paying that reload cost when
-  // it isn't needed.
-  const modelKind = state.workflow === 'magnific' ? 'flux1' : 'flux2';
+  await freeIfModelSwitch(state.workflow === 'magnific' ? 'flux1' : 'flux2');
+
+  const img = await submitAndWait(prompt, saveImageNodeId);
+  if(img) showRunResult(img);
+  btnRun.disabled = false;
+}
+
+// The Magnific graph loads flux1-dev-fp8; every other mode loads
+// flux2_dev_fp8mixed. ComfyUI's own eviction didn't reliably swap these on the
+// shared GPU box — measured 2026-08-17: a stale flux2 load left only
+// 743MB/12.8GB VRAM free, so the flux1 load partially offloaded to system RAM
+// and took 10x longer than normal. Forcing an unload only on an actual
+// model-family switch (not on repeat runs of the same workflow) avoids paying
+// that reload cost when it isn't needed.
+async function freeIfModelSwitch(modelKind){
   if(state.lastModelKind && state.lastModelKind !== modelKind){
     log('Switching model family (' + state.lastModelKind + ' -> ' + modelKind + '), freeing GPU memory first...');
     try{
@@ -1279,7 +1696,28 @@ async function runWorkflow(){
     }catch(e){ /* best effort — a failed free just means a slower load, not a broken run */ }
   }
   state.lastModelKind = modelKind;
+}
 
+// Build the /view URL for one SaveImage output entry.
+function viewUrlFor(img){
+  return baseUrl() + '/view?filename=' + encodeURIComponent(img.filename)
+    + '&subfolder=' + encodeURIComponent(img.subfolder || '')
+    + '&type=' + encodeURIComponent(img.type || 'output');
+}
+
+function showRunResult(img){
+  const viewUrl = viewUrlFor(img);
+  showCompare(state.origPreviewURL, viewUrl);
+  $('dlLink').href = viewUrl;
+  $('dlLink').download = img.filename;
+  $('actionsBottom').style.display = 'flex';
+}
+
+// Queue one graph and wait for it, returning its first SaveImage output entry,
+// or null if the run failed. Split out of runWorkflow because Sketch to Add
+// queues one masked pass per element type, each starting from the previous
+// pass's output, so submit-and-poll has to be callable more than once per Run.
+async function submitAndWait(prompt, saveImageNodeId){
   log('Sending request to ComfyUI...');
   let promptId;
   try{
@@ -1307,13 +1745,12 @@ async function runWorkflow(){
   }catch(e){
     log('Request failed: ' + e.message, 'err');
     log('Please try again. Contact support if the problem persists.');
-    btnRun.disabled = false;
-    return;
+    return null;
   }
 
   // poll history
   const start = Date.now();
-  let done = false;
+  let result = null, done = false;
   while(!done){
     await new Promise(r=>setTimeout(r, 1500));
     const elapsed = ((Date.now()-start)/1000).toFixed(0);
@@ -1325,17 +1762,9 @@ async function runWorkflow(){
         if(entry.status && entry.status.completed === true){
           done = true;
           log('Done (' + elapsed + 's)', 'ok');
-          const outputs = entry.outputs;
-          const node = outputs[saveImageNodeId];
+          const node = entry.outputs[saveImageNodeId];
           if(node && node.images && node.images.length){
-            const img = node.images[0];
-            const viewUrl = baseUrl() + '/view?filename=' + encodeURIComponent(img.filename)
-              + '&subfolder=' + encodeURIComponent(img.subfolder || '')
-              + '&type=' + encodeURIComponent(img.type || 'output');
-            showCompare(state.origPreviewURL, viewUrl);
-            $('dlLink').href = viewUrl;
-            $('dlLink').download = img.filename;
-            $('actionsBottom').style.display = 'flex';
+            result = node.images[0];
           }else{
             log('No output image found in the SaveImage node — check that the node id matches the actual workflow', 'err');
           }
@@ -1356,7 +1785,7 @@ async function runWorkflow(){
       log('Timed out (over 10 minutes) — the job may still be running, check ComfyUI directly', 'err');
     }
   }
-  btnRun.disabled = false;
+  return result;
 }
 
 // ---------------------------------------------------------------------------

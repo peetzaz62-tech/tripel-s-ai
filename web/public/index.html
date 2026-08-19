@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-19a">
+<link rel="stylesheet" href="styles.css?v=2026-08-19b">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -167,6 +167,15 @@
             </div>
           </div>
         </div>
+          <div class="wf-opt" data-wf="sketch">
+            <div class="wf-icon">
+              <svg viewBox="0 0 20 20" fill="none"><path d="M2.7 16.6V13.8L12.3 4.2C12.8 3.7 13.6 3.7 14.1 4.2L15.5 5.6C16 6.1 16 6.9 15.5 7.4L5.9 17H3.1C2.9 17 2.7 16.8 2.7 16.6Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M11 5.6L14.2 8.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="name">SSS Sketch to Add <span class="badge">Beta</span></div>
+              <div class="desc">วาดคร่าวๆ ทับภาพที่เรนเดอร์เสร็จแล้ว เพื่อเพิ่มต้นไม้ หิน คน รถ สัตว์ หรือดวงไฟ เฉพาะตรงที่วาด — นอกกรอบที่วาดถูกล็อกไว้ด้วย mask ไม่เจนใหม่ทั้งภาพ</div>
+            </div>
+          </div>
       </div>
 
       <div class="card">
@@ -501,6 +510,58 @@
         </details>
       </div>
 
+      <div class="card" id="paramsCardSketch" style="display:none;">
+        <div class="card-head"><h2>03 · Parameters · SSS Sketch to Add</h2><span class="plate-no">PL.03</span></div>
+        <div class="sk-note">อัปโหลดภาพที่ <b>เรนเดอร์เสร็จแล้ว</b> · เลือกชนิดจากแถบด้านขวา แล้วลากวาดทับตำแหน่งที่ต้องการ<br>แต่ละชนิดจะถูกเจนเป็นรอบของตัวเอง ต่อกันไปทีละรอบ — วาดหลายชนิดจะใช้เวลาเป็นเท่าตัว</div>
+        <div id="skPassList"></div>
+
+        <details class="optgroup">
+          <summary>Render settings<span class="og-sign"></span></summary>
+          <div class="og-body">
+            <div class="row2">
+              <label class="field">
+                <span>Mode</span>
+                <select id="skTurbo">
+                  <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
+                  <option value="balanced">Balanced — 8 steps ไม่มี LoRA</option>
+                  <option value="quality">Quality — 20 steps (คมสุด)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Guidance</span>
+                <input type="number" id="skGuidance" value="3.5" step="0.5" min="0" max="20">
+              </label>
+            </div>
+            <div class="row2">
+              <label class="field">
+                <span>Output resolution (MP)</span>
+                <input type="number" id="skMegapixels" value="2" step="0.5" min="0.5" max="8">
+              </label>
+              <label class="field">
+                <span>Seed</span>
+                <div class="seedrow">
+                  <input type="number" id="skSeed" value="62">
+                  <button class="ghost" id="btnRandSeedSketch">Randomize</button>
+                </div>
+              </label>
+            </div>
+            <label class="field">
+              <span>ขอบนุ่ม — Feather (% ของด้านสั้น)</span>
+              <input type="number" id="skFeather" value="3" step="0.5" min="0" max="15">
+              <span class="fieldhint">ขอบ mask ที่คมจะเห็นเป็นรอยต่อ · 3% ของด้านสั้นคือค่าที่วัดแล้วไม่เห็นรอย</span>
+            </label>
+            <label class="field">
+              <span><label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;"><input type="checkbox" id="skLock" style="width:auto;margin:0;"> ล็อกพิกเซลนอกกรอบให้เหมือนเดิม 100%</label></span>
+              <span class="fieldhint">ปิดไว้ — เพราะเงาของสิ่งที่เพิ่มมักตกออกนอกกรอบที่วาด ถ้าเปิดจะได้ภาพเดิมเป๊ะนอกกรอบ แต่เงาที่ล้นออกมาจะถูกลบไปด้วย</span>
+            </label>
+            <label class="field">
+              <span>Prompt ของรอบแรก (read-only)</span>
+              <textarea id="skPrompt" readonly style="min-height:90px;"></textarea>
+            </label>
+          </div>
+        </details>
+      </div>
+
       <div class="card">
         <button class="run" id="btnRun" disabled>Run Workflow</button>
       </div>
@@ -515,7 +576,26 @@
     <div class="card result-area">
       <div class="result-head">
         <h2>Result</h2>
+        <div class="stage-tabs" id="stageTabs" style="display:none;">
+          <button type="button" class="stg active" data-stg="sketch">Sketch</button>
+          <button type="button" class="stg" data-stg="result">Result</button>
+        </div>
         <span class="hint">Drag the center line to compare · PL.05</span>
+      </div>
+      <div class="sketch-stage" id="sketchStage" style="display:none;">
+        <div class="sk-toolbar">
+          <div id="skChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          <div class="sk-tools">
+            <label class="sk-size">Brush<input type="range" id="skBrush" min="2" max="30" step="1" value="10"></label>
+            <button class="ghost" id="skUndo">Undo</button>
+            <button class="ghost" id="skClear">Clear</button>
+          </div>
+        </div>
+        <div class="sk-stagewrap" id="skWrap">
+          <span class="sk-empty" id="skEmpty">อัปโหลดภาพที่เรนเดอร์เสร็จแล้วก่อน แล้วค่อยลากวาดทับตำแหน่งที่อยากเพิ่ม</span>
+          <img id="skImg" style="display:none;">
+          <canvas id="skCanvas" style="display:none;"></canvas>
+        </div>
       </div>
       <div class="cmp" id="cmp">
         <span class="cmp-empty" id="cmpEmpty">No image yet — upload an image and run the workflow first</span>
@@ -722,6 +802,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-19a"></script>
+<script src="app.js?v=2026-08-19b"></script>
 </body>
 </html>

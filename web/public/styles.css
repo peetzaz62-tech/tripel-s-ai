@@ -369,6 +369,55 @@
 #view-app .seedrow{display:flex;gap:8px;}
 #view-app .seedrow input{flex:1;}
 
+  /* ---------- SSS Sketch to Add ----------
+     The stage tabs and the drawing surface live in the right-hand column
+     because the left one is a fixed 330px and a mask drawn at that width is
+     too coarse to place anything accurately. */
+#view-app .stage-tabs{display:flex;border:1px solid var(--hair-strong);border-radius:2px;overflow:hidden;}
+#view-app .stage-tabs button{
+    background:transparent;border:0;padding:5px 13px;cursor:pointer;
+    font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-soft);
+  }
+#view-app .stage-tabs button + button{border-left:1px solid var(--hair-strong);}
+#view-app .stage-tabs button:hover{color:var(--ink);}
+#view-app .stage-tabs button.active{background:var(--accent);color:var(--paper-raised);}
+#view-app .sketch-stage{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;}
+#view-app .sk-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+#view-app .sk-chip{
+    display:inline-flex;align-items:center;gap:7px;
+    background:var(--paper);border:1px solid var(--hair-strong);border-radius:2px;
+    padding:5px 10px;cursor:pointer;font-family:var(--sans);font-size:12px;color:var(--ink-soft);
+  }
+#view-app .sk-chip .sw{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+#view-app .sk-chip .n{font-family:var(--mono);font-size:10px;color:var(--paper-raised);background:var(--ink-faint);
+    border-radius:20px;padding:0 5px;line-height:14px;min-width:14px;text-align:center;}
+#view-app .sk-chip:hover{border-color:var(--ink-soft);}
+#view-app .sk-chip.on{border-color:var(--accent);background:var(--accent-tint);color:var(--ink);font-weight:600;}
+#view-app .sk-chip.on .n{background:var(--accent);}
+#view-app .sk-tools{display:flex;align-items:center;gap:12px;margin-left:auto;}
+#view-app .sk-size{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;
+    color:var(--ink-soft);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap;}
+#view-app .sk-size input[type=range]{width:90px;}
+#view-app .sk-stagewrap{
+    position:relative;flex:1;min-height:220px;
+    background:var(--ink);border:1px solid var(--hair-strong);border-radius:2px;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+  }
+#view-app .sk-stagewrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+#view-app .sk-stagewrap canvas{position:absolute;cursor:crosshair;touch-action:none;}
+#view-app .sk-empty{color:#ffffff66;font-size:12.5px;font-family:var(--mono);text-align:center;padding:20px;letter-spacing:.3px;}
+#view-app .sk-note{font-size:11.5px;color:var(--ink-soft);line-height:1.65;
+    border-left:2px solid var(--hair-strong);padding-left:10px;margin-bottom:14px;}
+#view-app .sk-pass{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--hair);}
+#view-app .sk-pass .sw{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+#view-app .sk-pass .lbl{font-size:12.5px;white-space:nowrap;}
+#view-app .sk-pass .cnt{font-family:var(--mono);font-size:10px;color:var(--ink-faint);}
+#view-app .sk-pass input[type=text]{
+    flex:1;min-width:0;background:var(--paper);border:1px solid var(--hair-strong);color:var(--ink);
+    padding:6px 8px;border-radius:2px;font-size:12px;font-family:var(--sans);
+  }
+#view-app .sk-pass input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint);}
+
   /* ===================== VIEW: LOGIN ===================== */
 #view-login{margin:0;min-height:100vh;background:
       repeating-linear-gradient(0deg, transparent, transparent 27px, #0000000a 27px, #0000000a 28px),
