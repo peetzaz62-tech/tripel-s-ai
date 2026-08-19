@@ -1429,16 +1429,30 @@ function skMaskSize(){
 function skWorkSize(w, h, megapixels){
   const target = Math.max(0.25, megapixels) * 1024 * 1024;
   const aspect = w / h;
+  const err = (ww, hh) => Math.abs(ww / hh - aspect) / aspect;
+
+  // The size the old megapixel path ended up at, after the VAE had cropped each
+  // side down to a multiple of 16. It is a candidate, not just history: FLUX
+  // draws its noise to the shape of the latent, so changing the canvas by even
+  // 16px makes the same seed a different picture. A frame whose proportion was
+  // never wrong should therefore keep the exact canvas it had, or every seed
+  // peetz has already judged stops meaning anything. Measured on the frame that
+  // caught this: 860x858 came back with different light and materials purely
+  // because 1440x1440 became 1456x1456, and both are exactly square.
+  const s = Math.sqrt(target / (w * h));
+  const legacy = [Math.max(16, Math.floor(Math.round(w * s) / 16) * 16),
+                  Math.max(16, Math.floor(Math.round(h * s) / 16) * 16)];
+
   const centre = Math.round(Math.sqrt(target / aspect) / 16) * 16;
   let best = null;
   for(let hh = centre - 64; hh <= centre + 64; hh += 16){
     if(hh < 64) continue;
     const ww = Math.max(64, Math.round(hh * aspect / 16) * 16);
-    const score = Math.abs(ww / hh - aspect) / aspect * 1000
-                + Math.abs(ww * hh - target) / target;
+    const score = err(ww, hh) * 1000 + Math.abs(ww * hh - target) / target;
     if(!best || score < best.score) best = { w: ww, h: hh, score };
   }
-  return [best.w, best.h];
+  // Only move the canvas when moving it actually buys a truer proportion.
+  return err(legacy[0], legacy[1]) <= err(best.w, best.h) + 1e-9 ? legacy : [best.w, best.h];
 }
 
 function skMaskBlob(type, W, H){
