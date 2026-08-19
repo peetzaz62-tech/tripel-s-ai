@@ -1315,6 +1315,7 @@ function skSetImage(url){
     $('skCanvas').style.display = '';
     $('skEmpty').style.display = 'none';
     skFitCanvas();
+    refreshWorkNotes();
   };
   img.src = url;
   // A finished run leaves the stage on Result. A new image means a new drawing,
@@ -1716,7 +1717,7 @@ async function handleFile(file){
   state.origPreviewURL = url;
   // Read the surface colours once the preview has decoded, then rebuild the
   // hidden prompt so the sentence is in it before Run is pressed.
-  $('previewImg').onload = () => applyPromptType();
+  $('previewImg').onload = () => { applyPromptType(); refreshWorkNotes(); };
   $('previewImg').src = url;
   $('previewBox').style.display = 'block';
   showBeforeOnly(url);
@@ -1768,6 +1769,32 @@ function workSizeForPreview(megapixels){
   if(!pv || !pv.naturalWidth || !pv.naturalHeight) return undefined;
   return skWorkSize(pv.naturalWidth, pv.naturalHeight, megapixels);
 }
+
+// A seed only reproduces a picture together with the canvas it was drawn on:
+// FLUX generates its noise to the shape of the latent, so the same seed on a
+// 90x90 latent and a 91x91 one are unrelated draws. peetz found this the hard
+// way when a canvas moved by 16px and the light and materials came back
+// different. The size is therefore shown next to the seed, so two runs can be
+// told apart at a glance and a result worth keeping can be written down as the
+// pair it actually is.
+function refreshWorkNotes(){
+  const rows = [
+    ['sWorkNote',  'sMegapixels',  $('previewImg')],
+    ['apWorkNote', 'apMegapixels', $('previewImg')],
+    ['skWorkNote', 'skMegapixels', $('skImg')]
+  ];
+  for(const [noteId, mpId, img] of rows){
+    const el = $(noteId);
+    if(!el || !$(mpId)) continue;
+    if(!img || !img.naturalWidth){ el.textContent = ''; continue; }
+    const [w, h] = skWorkSize(img.naturalWidth, img.naturalHeight, parseFloat($(mpId).value));
+    el.textContent = 'ผืนผ้าใบ ' + w + '×' + h + ' · seed ใช้ซ้ำได้เฉพาะกับภาพและขนาดนี้';
+  }
+}
+['sMegapixels','apMegapixels','skMegapixels'].forEach(id => {
+  const el = $(id);
+  if(el) el.addEventListener('input', refreshWorkNotes);
+});
 
 async function runWorkflow(){
   btnRun.disabled = true;
