@@ -1333,17 +1333,43 @@ function skApron(type){
   return SK_EMITTING[type] ? { grow: v, drop: 0 } : { grow: v * 0.4, drop: v * 1.8 };
 }
 
+// The grown area is where the shadow may land, NOT a second place to put the
+// thing — but a mask painted pure white says nothing of the sort. Every pixel
+// at 1.0 gets the same instruction, so "trees now grow in it" grew trees in the
+// shadow room as readily as in the stroke, which is exactly what peetz saw.
+//
+// SetLatentNoiseMask takes the values between, not just black and white: the
+// sampler keeps the original in proportion to 1 - mask, so a grey area moves
+// only part of the way toward what was asked for. Enough to darken ground into
+// a shadow, not enough to assemble a trunk and a canopy there. Strongest right
+// under the stroke where a contact shadow sits, weakest at the far end — which
+// is how a real cast shadow falls off anyway.
+// Read off a control rather than fixed, because the right strength depends on
+// how much was drawn and what lies under it. Both ends are known: at 1.0 the
+// shadow room grew its own trees, and at 0.5 nothing happened at all — not even
+// a shadow, and the trunk stopped where the stroke did.
+const skApronStrength = () => Math.max(0, Math.min(100, parseFloat($("skApronPower").value) || 0)) / 100;
+const SK_GREY = v => {
+  const n = Math.round(Math.max(0, Math.min(1, v)) * 255);
+  return 'rgb(' + n + ',' + n + ',' + n + ')';
+};
+
 // Smearing the stroke downward in small steps, rather than stamping one big
-// shape at the bottom, keeps the grown area the shape of what was drawn.
+// shape at the bottom, keeps the grown area the shape of what was drawn. The
+// steps run far-to-near so the nearer, stronger ones paint over the weaker.
+// A colour means this is the on-screen preview; without one it is the mask.
 function skPaintGrown(ctx, strokes, W, H, type, colour){
   const short = Math.min(W, H);
   const { grow, drop } = skApron(type);
   const dropPx = drop * short;
   const steps = dropPx > 0 ? Math.max(1, Math.round(dropPx / 4)) : 0;
+  const near = skApronStrength(), far = near * 0.55;
+  const shade = f => colour || SK_GREY(near - (near - far) * f);
   for(let i = steps; i >= 1; i--){
-    skPaint(ctx, strokes, W, H, colour, grow * short, dropPx * (i / steps));
+    const f = i / steps;
+    skPaint(ctx, strokes, W, H, shade(f), grow * short, dropPx * f);
   }
-  skPaint(ctx, strokes, W, H, colour, grow * short, 0);
+  skPaint(ctx, strokes, W, H, shade(0), grow * short, 0);
 }
 
 // A reusable offscreen canvas. Two of these are kept rather than allocated per
@@ -1439,7 +1465,11 @@ function skMaskBlob(type, W, H){
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  skPaintGrown(ctx, SK.strokes.filter(s => s.type === type), W, H, type, '#fff');
+  const mine = SK.strokes.filter(s => s.type === type);
+  // Shadow room first, at partial strength, then the stroke itself over the top
+  // at full strength. What was drawn on is the only place the thing can be.
+  skPaintGrown(ctx, mine, W, H, type, null);
+  skPaint(ctx, mine, W, H, '#fff');
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
 
@@ -1576,6 +1606,7 @@ function skSyncMode(){
   $('skClear').addEventListener('click', () => { SK.strokes = []; skRedraw(); skRefreshUI(); });
   $('skBrush').addEventListener('input', skRedraw);
   $('skGround').addEventListener('input', skRedraw);
+  $('skApronPower').addEventListener('input', skRedraw);
   document.querySelectorAll('#stageTabs .stg').forEach(b =>
     b.addEventListener('click', () => skSetStage(b.dataset.stg)));
   $('btnRandSeedSketch').addEventListener('click', () => {
