@@ -1742,6 +1742,19 @@ $('btnRandSeedPeople').addEventListener('click', ()=>{
 
 btnRun.addEventListener('click', runWorkflow);
 
+// The working size for whichever mode is about to run, from the frame that was
+// uploaded. Sketch to Add has done this since 2026-08-19; the other flux2 modes
+// were left on the old path and drift the same 0.82%, which peetz sees as the
+// two halves of the compare slider refusing to line up. Same fix here: both
+// sides multiples of 16 so the VAE has nothing to crop, chosen to hold the
+// source's own ratio. Falls back to the old megapixel path if the preview has
+// not reported its size yet, which only ever leaves it as it was.
+function workSizeForPreview(megapixels){
+  const pv = $('previewImg');
+  if(!pv || !pv.naturalWidth || !pv.naturalHeight) return undefined;
+  return skWorkSize(pv.naturalWidth, pv.naturalHeight, megapixels);
+}
+
 async function runWorkflow(){
   btnRun.disabled = true;
   $('actionsBottom').style.display = 'none';
@@ -1766,6 +1779,7 @@ async function runWorkflow(){
       mode: $('sTurbo').value,
       guidance: parseFloat($('sGuidance').value),
       megapixels: parseFloat($('sMegapixels').value),
+      scaleTo: workSizeForPreview(parseFloat($('sMegapixels').value)),
       // Add People deliberately does not pass this: its input is already a
       // finished photograph, and starting from its latent would leave no room
       // for the figures to appear.
@@ -1786,6 +1800,7 @@ async function runWorkflow(){
       mode: $('apTurbo').value,
       guidance: parseFloat($('apGuidance').value),
       megapixels: parseFloat($('apMegapixels').value),
+      scaleTo: workSizeForPreview(parseFloat($('apMegapixels').value)),
       seed: parseInt($('apSeed').value)
     });
     saveImageNodeId = SAVE_IMAGE_NODE_ID_SSS;
