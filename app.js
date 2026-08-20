@@ -1244,7 +1244,15 @@ const SK_TYPES = [
   // drag to the other, and the stroke is the segment between them rather than
   // the wobble the hand made on the way. The chip is the mode — no toggle to
   // find, and none to leave switched on by mistake.
-  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5', paint:'#E6CD96', order:4, line:1 }
+  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5', paint:'#E6CD96', order:4, line:1 },
+  // Foreground framing, peetz's ask on 2026-08-20 with two reference photos: a
+  // stand of birch trunks the camera shoots past, and a branch hanging into the
+  // top corners. He had been drawing a huge tree to get this and getting a
+  // huge tree. It is a different thing from a tree in the scene — nothing about
+  // it is whole, it is cut off by the frame, and it is nearer than the focus.
+  // Rendered last, because whatever is in front of the camera goes on last.
+  { id:'fgtrunk', label:'ลำต้นหน้าภาพ', color:'#7A5230', paint:'#4A3927', order:5 },
+  { id:'fgleaf',  label:'พุ่มหน้าภาพ',  color:'#2E7D32', paint:'#2E5227', order:5 }
 ];
 const SK_TYPE_BY_ID = Object.fromEntries(SK_TYPES.map(t => [t.id, t]));
 // Brush sizes run 2..30. Anything under this is too narrow to be a canopy.
@@ -1259,6 +1267,13 @@ const SK_BASE = `This is a finished photograph. Leave it exactly as it is — th
 // there — so it reads the source instead of being told what the source is.
 const SK_DAYLIT = ` It is lit by the light already in the frame, catching that light from the same direction as everything around it, and it casts its own shadow onto the ground in the same direction and with the same softness as the shadows already there.`;
 const SK_DAYLIT_PL = ` They are lit by the light already in the frame, catching that light from the same direction as everything around them, and they cast their own shadows onto the ground in the same direction and with the same softness as the shadows already there.`;
+
+// Foreground framing gets neither clause. It stands between the camera and the
+// scene, so it has no ground to put a shadow on, and its whole job is to leave
+// the picture behind it exactly as it was.
+const SK_FRAME = ` It is lit by the same light as the scene behind it, and the scene behind it keeps the exposure, the colour and the sharpness it already had.`;
+const SK_FRAME_PL = ` They are lit by the same light as the scene behind them, and the scene behind them keeps the exposure, the colour and the sharpness it already had.`;
+const SK_FRAMING = { fgtrunk:1, fgleaf:1 };
 
 // Light sources need the opposite clause: they give light rather than take it.
 const SK_EMIT = ` The light it gives off is the same colour temperature as the light already in the picture. Its glow spreads onto the surfaces immediately around it and fades away gradually; nothing further away in the frame changes exposure.`;
@@ -1285,14 +1300,26 @@ const SK_WHAT = {
   lamp: n => n === 1
     ? `The only change is that a light fitting is now mounted there and switched on: a fitting of the kind this place already uses, giving off light.`
     : `The only change is that light fittings are now mounted there and switched on: fittings of the kind this place already uses, giving off light.`,
-  hidden: () => `The only change is that concealed lighting is now switched on there: the fitting itself stays completely out of sight, and only the light it throws across the surface is visible — an even wash, brightest closest to where it is concealed, fading away smoothly.`
+  hidden: () => `The only change is that concealed lighting is now switched on there: the fitting itself stays completely out of sight, and only the light it throws across the surface is visible — an even wash, brightest closest to where it is concealed, fading away smoothly.`,
+  // Three things carry the whole idea and all three are stated: it is cut off
+  // by the frame, it is nearer than whatever the camera is focused on, and the
+  // tree it belongs to is not in the picture. Leave any of them out and what
+  // comes back is a tree standing in the scene, which is what he already had.
+  fgtrunk: n => n === 1
+    ? `The only change is that the trunk of a tree now stands close in front of the camera: rough bark seen from arm's length, running out of the top and the bottom of the frame so that neither the crown nor the foot of it is in view, larger and darker than anything behind it, and a little soft because the camera is focused past it on the scene beyond.`
+    : `The only change is that the trunks of trees now stand close in front of the camera: rough bark seen from arm's length, running out of the top and the bottom of the frame so that neither the crowns nor the feet of them are in view, larger and darker than anything behind them, and a little soft because the camera is focused past them on the scene beyond.`,
+  fgleaf: n => n === 1
+    ? `The only change is that a leafy branch now hangs into the frame from close in front of the camera: leaves and thin branches seen from arm's length, entering from the edge of the frame with the tree they belong to out of shot, larger and darker than anything behind them, and a little soft because the camera is focused past them on the scene beyond.`
+    : `The only change is that leafy branches now hang into the frame from close in front of the camera: leaves and thin branches seen from arm's length, entering from the edges of the frame with the trees they belong to out of shot, larger and darker than anything behind them, and a little soft because the camera is focused past them on the scene beyond.`
 };
 const SK_EMITTING = { lamp:1, hidden:1 };
 
 function buildSketchPromptP(p = {}){
   const type = SK_WHAT[p.type] ? p.type : 'tree';
   const count = Math.max(1, Math.round(Number(p.count) || 1));
-  const tail = SK_EMITTING[type] ? SK_EMIT : (count === 1 ? SK_DAYLIT : SK_DAYLIT_PL);
+  const tail = SK_EMITTING[type] ? SK_EMIT
+    : SK_FRAMING[type] ? (count === 1 ? SK_FRAME : SK_FRAME_PL)
+    : (count === 1 ? SK_DAYLIT : SK_DAYLIT_PL);
   const desc = String(p.desc || '').trim();
   // Free text is appended rather than spliced in, so the wording that was
   // actually rendered stays byte-for-byte intact.
@@ -1476,41 +1503,52 @@ function skPaintedBlob(imgEl, type, W, H){
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
 
-// How far a pass moved the picture, as a mean absolute difference per channel.
+// How much of the drawing came back as drawing.
 //
-// This mode has one failure that looks exactly like success: the sampler runs
-// its full time and hands back the frame it was given, drawn shape and all.
-// Measured 2026-08-20 on peetz's own runs, result against the painted frame
-// that went up: 2.30, 3.05 and 3.10 where nothing happened, against 8.83, 9.13
-// and 15.35 where a tree grew. Everything below about 3 is the VAE round trip
-// and nothing else, so anything under SK_MOVED did not happen.
-const SK_MOVED = 4.5;
+// This mode has one failure that looks like success from a distance: the
+// sampler runs its full time and hands back the stamped colour, unchanged, as
+// flat paint sitting on top of the render. The first version of this check
+// measured the whole frame and missed it — on peetz's run of 2026-08-20 the
+// frame had moved 10.28 overall, comfortably "fine", while 16.5% of the result
+// was still literally the paint colour and two flat blobs were sitting in the
+// picture. Averages hide a local disaster.
+//
+// So count the pixels instead. Real foliage does land near the stamped green
+// here and there, so the line is not at zero — measured across nine renders,
+// eight that worked came in between 0.04% and 0.65%, and the one that failed
+// came in at 19.98%. Three percent sits five times above the worst good run
+// and seven times below the bad one.
+const SK_PAINT_LEFT = 0.03;
 
-async function skPassMoved(paintedBlob, resultImg){
+async function skPaintLeft(type, resultImg){
   try{
-    const [a, b] = await Promise.all([
-      skLoadImage(paintedBlob),
-      fetch(viewUrlFor(resultImg)).then(r => r.blob()).then(skLoadImage)
-    ]);
-    const W = a.naturalWidth, H = a.naturalHeight;
-    if(!W || b.naturalWidth !== W || b.naturalHeight !== H) return null;
-    const px = im => {
-      const c = document.createElement('canvas');
-      c.width = W; c.height = H;
-      const x = c.getContext('2d', { willReadFrequently:true });
-      x.drawImage(im, 0, 0, W, H);
-      return x.getImageData(0, 0, W, H).data;
-    };
-    const pa = px(a), pb = px(b);
-    let sum = 0;
+    const t = SK_TYPE_BY_ID[type];
+    const wanted = [t.paint, t.paintThin].filter(Boolean).map(hexToRGB);
+    if(!wanted.length) return null;
+    const im = await skLoadImage(await (await fetch(viewUrlFor(resultImg))).blob());
+    const W = im.naturalWidth, H = im.naturalHeight;
+    if(!W) return null;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const x = c.getContext('2d', { willReadFrequently:true });
+    x.drawImage(im, 0, 0, W, H);
+    const px = x.getImageData(0, 0, W, H).data;
+    let left = 0;
     for(let i = 0; i < W*H; i++){
-      sum += (Math.abs(pa[i*4] - pb[i*4]) + Math.abs(pa[i*4+1] - pb[i*4+1]) + Math.abs(pa[i*4+2] - pb[i*4+2])) / 3;
+      for(const [r, g, b] of wanted){
+        if(Math.abs(px[i*4] - r) < 12 && Math.abs(px[i*4+1] - g) < 12 && Math.abs(px[i*4+2] - b) < 12){ left++; break; }
+      }
     }
-    return sum / (W*H);
+    return left / (W*H);
   }catch(e){
     // A measurement that cannot be taken must not stop a run that succeeded.
     return null;
   }
+}
+
+function hexToRGB(hex){
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
 // Decoded through a blob URL rather than straight off the server, because a
@@ -1943,10 +1981,10 @@ async function runSketchPasses(){
     if(!img){ log('หยุดที่รอบ ' + (i+1) + ' — ผลของรอบก่อนหน้ายังใช้ได้', 'err'); break; }
     last = img;
 
-    const moved = await skPassMoved(painted, img);
-    if(moved !== null && moved < SK_MOVED){
-      log('รอบนี้ AI คืนภาพเดิมกลับมา — สิ่งที่วาดยังเป็นสีแบนอยู่ (วัดได้ ' + moved.toFixed(2) + ' ซึ่งคือระดับที่ไม่มีอะไรเกิดขึ้นเลย)', 'err');
-      log('ผืนผ้าใบยิ่งใหญ่ ยิ่งต้องใช้ denoise สูงขึ้น — ลองเพิ่ม denoise ทีละ 0.05 หรือลด Output resolution ลง');
+    const leftOver = await skPaintLeft(p.type, img);
+    if(leftOver !== null && leftOver > SK_PAINT_LEFT){
+      log('รอบนี้สีที่วาดยังค้างอยู่ในภาพ ' + (leftOver*100).toFixed(1) + '% — ไม่ได้กลายเป็นของจริง', 'err');
+      log('ยิ่งวาดพื้นที่ใหญ่ ยิ่งต้องใช้ denoise สูงขึ้น — ลองเพิ่มทีละ 0.05 จนถึง 1.00 หรือวาดให้เล็กลง');
     }
 
     // Feed this pass into the next one. SaveImage writes to ComfyUI's output
