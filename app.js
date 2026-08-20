@@ -1804,6 +1804,18 @@ const SK_ALWAYS_MASK = { fgtrunk:1, fgleaf:1 };
 // is free to darken. Measured on a masked render that had none: ground 160.6 ->
 // 153.0, whole frame moved 8.10, and the tree itself stayed put.
 //
+// At 0.85 it does not cast a shadow, it just dims the picture — and that took
+// peetz's own frames to find, because the one I measured it on happened to
+// work. Measured on his 1520x800 render, how much darker near the tree than
+// far from it:
+//
+//   0.85    +1.7   near darkened LESS than far — no shadow, just a duller frame
+//   0.90    +4.7   still none
+//   0.95    -4.6   a dappled shadow on the road, visible
+//
+// So 0.95. It moves the frame more — 10.86 against 6.41 — which is the price
+// of letting the ground be redrawn enough to have a shadow put on it.
+//
 // It runs once at the end, not once per chip, so a three-chip run costs one
 // extra pass and not three.
 const SK_SETTLE = `This is a finished photograph. Leave it exactly as it is — the same place, the same objects in the same positions, the same materials, the same colours, the same lighting and the same camera. Nothing already in the frame is moved, replaced, restyled or removed. The one thing that is completed is the light: everything standing in it casts its own shadow onto the ground, falling in the same direction and with the same softness as the shadows already there.`;
@@ -2185,7 +2197,7 @@ async function runSketchPasses(){
       const settled = await submitAndWait(buildSSSPrompt(Object.assign({}, common, {
         imageName: name,
         maskImage: undefined,
-        denoise: 0.85,
+        denoise: 0.95,
         seed: seed + passes.length,
         prompt: SK_SETTLE
       })), SAVE_IMAGE_NODE_ID_SSS);
