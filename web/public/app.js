@@ -1240,7 +1240,11 @@ const SK_TYPES = [
   { id:'car',    label:'รถ',       color:'#2D6CDF', paint:'#96989C', order:3 },
   { id:'animal', label:'สัตว์',    color:'#9B59B6', paint:'#786858', order:3 },
   { id:'lamp',   label:'ดวงโคม',   color:'#E5B700', paint:'#E6CD96', order:4 },
-  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5', paint:'#E6CD96', order:4 }
+  // A cove or a strip is a line, so this one draws lines: press at one end,
+  // drag to the other, and the stroke is the segment between them rather than
+  // the wobble the hand made on the way. The chip is the mode — no toggle to
+  // find, and none to leave switched on by mistake.
+  { id:'hidden', label:'ไฟซ่อน',   color:'#00A7B5', paint:'#E6CD96', order:4, line:1 }
 ];
 const SK_TYPE_BY_ID = Object.fromEntries(SK_TYPES.map(t => [t.id, t]));
 // Brush sizes run 2..30. Anything under this is too narrow to be a canopy.
@@ -1776,7 +1780,7 @@ function skSyncMode(){
     if(!p) return;
     cv.setPointerCapture(e.pointerId);
     SK.hover = p;
-    SK.cur = { type: SK.type, size: parseFloat($('skBrush').value), pts: [p] };
+    SK.cur = { type: SK.type, size: parseFloat($('skBrush').value), pts: [p], line: !!SK_TYPE_BY_ID[SK.type].line };
     skRedraw();
   });
   // Runs whether or not a stroke is in progress: the ring has to follow the
@@ -1785,7 +1789,9 @@ function skSyncMode(){
     const p = at(e);
     if(!p) return;
     SK.hover = p;
-    if(SK.cur) SK.cur.pts.push(p);
+    // A line stroke keeps two points: where it started and where the pointer
+    // is now. Appending would record the hand's path and paint that instead.
+    if(SK.cur) SK.cur.line ? (SK.cur.pts[1] = p) : SK.cur.pts.push(p);
     skRedraw();
   });
   cv.addEventListener('pointerleave', () => { SK.hover = null; skRedraw(); });
