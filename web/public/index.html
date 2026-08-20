@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-20e">
+<link rel="stylesheet" href="styles.css?v=2026-08-20f">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -558,8 +558,8 @@
             </label>
             <label class="field" id="skDenoiseField">
               <span>ยึดภาพเดิมแค่ไหน — denoise</span>
-              <input type="number" id="skDenoise" value="1" step="0.05" min="0.5" max="1">
-              <span class="fieldhint">ใช้เฉพาะโหมด <b>ทั้งภาพ</b><br><b>1.00</b> = วาดใหม่ทั้งภาพ อ่านจากภาพที่วาดเป็นต้นแบบ · สิ่งที่วาดชัดที่สุด แต่วัสดุ แสง ถนน อาคาร ถูกวาดใหม่ไปด้วยทั้งหมด<br><b>ต่ำกว่า 1</b> = เริ่มจากภาพเดิม เก็บของเดิมไว้มากกว่า · ค่านี้ถูกปัดเป็นจำนวนสเต็ป <b>0.88 กับ 0.92 คือภาพเดียวกันเป๊ะ</b> และผืนยิ่งใหญ่ยิ่งต้องใช้ค่าสูง</span>
+              <input type="number" id="skDenoise" value="0.85" step="0.05" min="0.5" max="1">
+              <span class="fieldhint">ใช้เฉพาะโหมด <b>ทั้งภาพ</b> · นี่คือปุ่มที่ตัดสินว่า<b>ผลลัพธ์จะเกาะรูปที่วาดแค่ไหน</b><br><b>0.85</b> = ต้นไม้ขึ้นตรงที่วาด ขนาดตามที่วาด (แนะนำ) · <b>0.90</b> = เริ่มบานออกและเลื่อนตำแหน่ง · <b>1.00</b> = AI เลือกตำแหน่งและขนาดเอง รูปที่วาดเป็นแค่คำใบ้<br>ค่านี้ถูกปัดเป็นจำนวนสเต็ป <b>0.88 กับ 0.92 คือภาพเดียวกันเป๊ะ</b> · ถ้าเจนแล้วไม่มีอะไรเกิดขึ้น ให้เพิ่มค่านี้ทีละ 0.05</span>
             </label>
             <label class="field" id="skRoomField">
               <span>เผื่อพื้นที่รอบรูปที่วาด (% ของด้านสั้น)</span>
@@ -602,7 +602,7 @@
         <div class="sk-toolbar">
           <div id="skChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
           <div class="sk-tools">
-            <label class="sk-size">Brush<input type="range" id="skBrush" min="2" max="30" step="1" value="10"></label>
+            <label class="sk-size">Brush<input type="range" id="skBrush" min="0.5" max="30" step="0.5" value="10"></label>
             <button class="ghost" id="skUndo">Undo</button>
             <button class="ghost" id="skClear">Clear</button>
           </div>
@@ -820,6 +820,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-20e"></script>
+<script src="app.js?v=2026-08-20f"></script>
 </body>
 </html>

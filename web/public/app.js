@@ -1443,7 +1443,14 @@ function skPaintedBlob(imgEl, type, W, H){
   const lctx = lay.getContext('2d');
   // Softened, so the model is not asked to reproduce a hard paint edge.
   lctx.filter = 'blur(' + Math.max(1, Math.round(Math.min(W, H) / 400)) + 'px)';
-  if(t.paintThin){
+  // The thin-stroke rule only means anything alongside a thick one. A tree
+  // drawn entirely with a small brush is a tree, not a bare trunk — and
+  // stamping every stroke in bark left the model no green anywhere, so it
+  // invented a canopy at a size and a place of its own choosing. Measured
+  // 2026-08-20 on peetz's own run: a brown squiggle at x 0.41 came back as a
+  // pine filling the right half of the frame.
+  const hasCanopy = mine.some(st => st.size >= SK_THIN);
+  if(t.paintThin && hasCanopy){
     skPaint(lctx, mine.filter(st => st.size >= SK_THIN), W, H, t.paint);
     skPaint(lctx, mine.filter(st => st.size <  SK_THIN), W, H, t.paintThin);
   }else{
