@@ -1251,12 +1251,53 @@ const SK_TYPES = [
   // huge tree. It is a different thing from a tree in the scene — nothing about
   // it is whole, it is cut off by the frame, and it is nearer than the focus.
   // Rendered last, because whatever is in front of the camera goes on last.
-  { id:'fgtrunk', label:'ลำต้นหน้าภาพ', color:'#7A5230', paint:'#4A3927', order:5 },
-  { id:'fgleaf',  label:'พุ่มหน้าภาพ',  color:'#2E7D32', paint:'#2E5227', order:5 }
+  // `noRoom`: the margin exists so a canopy has somewhere to branch into and
+  // drop a shadow. Framing has neither — it wants the silhouette that was
+  // drawn and not a pixel more. It also cannot afford the margin: at 5% of a
+  // 1024px frame that is 51px a side, so a trunk drawn 43px wide came back
+  // 145px wide, and two thin trunks 100px apart merged into one fat one.
+  // Measured 2026-08-20, and it is why thin strokes were still coming back fat.
+  { id:'fgtrunk', label:'ลำต้นหน้าภาพ', color:'#7A5230', paint:'#4A3927', order:5, noRoom:1 },
+  { id:'fgleaf',  label:'พุ่มหน้าภาพ',  color:'#2E7D32', paint:'#2E5227', order:5, noRoom:1 }
 ];
 const SK_TYPE_BY_ID = Object.fromEntries(SK_TYPES.map(t => [t.id, t]));
-// Brush sizes run 2..30. Anything under this is too narrow to be a canopy.
+// Anything under this is too narrow to be a canopy, so on the tree chip it is
+// stamped in bark instead of green.
 const SK_THIN = 6;
+
+// The brush snaps to these rather than sliding freely. Free sliding gave a
+// number nobody could aim at — the difference between 3.5 and 4 is nothing, and
+// the difference between 4 and 14 is everything — and stroke width is now the
+// control that decides how thick a trunk comes back, so it needs to be a value
+// you can pick on purpose and hit again next time.
+const SK_BRUSHES = [1, 1.5, 2, 3, 4, 6, 8, 10, 14, 18, 24, 30];
+
+// What each size is good for, in the words of the thing being drawn rather
+// than in percentages of the short side.
+function skBrushWhat(size){
+  if(size <= 2)  return 'กิ่งเล็ก · ต้นไกล';
+  if(size <= 4)  return 'ลำต้นบาง';
+  if(size <= 8)  return 'ลำต้น';
+  if(size <= 14) return 'พุ่มเล็ก · ลำต้นใหญ่';
+  if(size <= 24) return 'พุ่ม';
+  return 'พุ่มใหญ่';
+}
+
+function skBrushSize(){
+  const i = Math.min(SK_BRUSHES.length - 1, Math.max(0, parseInt($('skBrush').value) || 0));
+  return SK_BRUSHES[i];
+}
+
+function skBrushRefresh(){
+  const size = skBrushSize();
+  $('skBrushNum').textContent = size;
+  // The bark rule only applies to the one chip that has two colours, so it is
+  // only mentioned there — a hint that is sometimes false is worse than none.
+  const bark = SK_TYPE_BY_ID[SK.type] && SK_TYPE_BY_ID[SK.type].paintThin
+    ? (size < SK_THIN ? ' · ป้ายสีเปลือกไม้' : ' · ป้ายสีเขียว')
+    : '';
+  $('skBrushWhat').textContent = skBrushWhat(size) + bark;
+}
 
 // Same opening as Add People, which is already proven for "the input is a
 // finished photograph, add something to it".
@@ -1305,12 +1346,26 @@ const SK_WHAT = {
   // by the frame, it is nearer than whatever the camera is focused on, and the
   // tree it belongs to is not in the picture. Leave any of them out and what
   // comes back is a tree standing in the scene, which is what he already had.
-  fgtrunk: n => n === 1
-    ? `The only change is that the trunk of a tree now stands close in front of the camera: rough bark seen from arm's length, running out of the top and the bottom of the frame so that neither the crown nor the foot of it is in view, larger and darker than anything behind it, and a little soft because the camera is focused past it on the scene beyond.`
-    : `The only change is that the trunks of trees now stand close in front of the camera: rough bark seen from arm's length, running out of the top and the bottom of the frame so that neither the crowns nor the feet of them are in view, larger and darker than anything behind them, and a little soft because the camera is focused past them on the scene beyond.`,
+  // Same two phrases that inflated the foliage were in here too, and they did
+  // the same thing: "arm's length" and "larger than anything behind" turned a
+  // slim trunk into a redwood. Depth is stated as tone and focus only. How
+  // thick the trunk is comes from how thick the stroke is — the mask decides
+  // that — so the sentence stays out of it.
+  fgtrunk: (n, p) => (p && p.grounded)
+    ? (n === 1
+        ? `The only change is that the trunk of a tree now stands between the camera and the scene: rough bark running up out of the top of the frame with its crown out of view, and at the bottom the base of it widening where it meets the ground, the ground closing around the foot with its own grass and fallen litter, reading darker than the scene behind it, and a little soft because the camera is focused past it on that scene.`
+        : `The only change is that the trunks of trees now stand between the camera and the scene: rough bark, each trunk exactly as thick as it is drawn, the thickest of them nearest the camera, all running up out of the top of the frame with their crowns out of view, and at the bottom the base of each widening where it meets the ground, the ground closing around the feet with its own grass and fallen litter, all reading darker than the scene behind them, and softest on the nearest because the camera is focused past them on that scene.`)
+    : (n === 1
+    ? `The only change is that the trunk of a tree now stands between the camera and the scene: rough bark running out of the top and the bottom of the frame so that neither the crown nor the foot of it is in view, reading darker than the scene behind it, and a little soft because the camera is focused past it on that scene.`
+    : `The only change is that the trunks of trees now stand between the camera and the scene: rough bark, each trunk exactly as thick as it is drawn, the thickest of them nearest the camera and running out of both the top and the bottom of the frame, the thinner ones standing further back among them so that the stand has depth to it, all reading darker than the scene behind them, and softest on the nearest because the camera is focused past them on that scene.`),
+  // "seen from arm's length" and "larger than anything behind" both pushed the
+  // scale up, and what came back was three or four enormous leaves. What the
+  // photographs actually show is the outer edge of a canopy: slender twigs
+  // carrying a lot of small leaves. Say that instead, and say the depth in
+  // terms of tone rather than size, or the size climbs again.
   fgleaf: n => n === 1
-    ? `The only change is that a leafy branch now hangs into the frame from close in front of the camera: leaves and thin branches seen from arm's length, entering from the edge of the frame with the tree they belong to out of shot, larger and darker than anything behind them, and a little soft because the camera is focused past them on the scene beyond.`
-    : `The only change is that leafy branches now hang into the frame from close in front of the camera: leaves and thin branches seen from arm's length, entering from the edges of the frame with the trees they belong to out of shot, larger and darker than anything behind them, and a little soft because the camera is focused past them on the scene beyond.`
+    ? `The only change is that the outer branches of a tree now reach into the frame from just outside it: a slender branch dividing into fine twigs that carry many small leaves, entering from the edge of the frame with the tree they belong to out of shot, hanging in front of the scene and reading darker than it, and a little soft because the camera is focused past them on the scene beyond.`
+    : `The only change is that the outer branches of trees now reach into the frame from just outside it: slender branches dividing into fine twigs that carry many small leaves, entering from the edges of the frame with the trees they belong to out of shot, hanging in front of the scene and reading darker than it, and a little soft because the camera is focused past them on the scene beyond.`
 };
 const SK_EMITTING = { lamp:1, hidden:1 };
 
@@ -1323,7 +1378,7 @@ function buildSketchPromptP(p = {}){
   const desc = String(p.desc || '').trim();
   // Free text is appended rather than spliced in, so the wording that was
   // actually rendered stays byte-for-byte intact.
-  const parts = [SK_BASE + ' ' + SK_WHAT[type](count) + tail];
+  const parts = [SK_BASE + ' ' + SK_WHAT[type](count, p) + tail];
   if(desc) parts.push(`Additional Instructions:\n${desc}`);
   return parts.join('\n\n');
 }
@@ -1428,7 +1483,7 @@ function skRedraw(){
 function skCursor(ctx, W, H){
   if(!SK.hover) return;
   const short = Math.min(W, H);
-  const rad = Math.max(2, parseFloat($('skBrush').value) / 100 * short) / 2;
+  const rad = Math.max(2, skBrushSize() / 100 * short) / 2;
   const x = SK.hover[0] * W, y = SK.hover[1] * H;
   ctx.save();
   // A dark ring under a light one, so the cursor reads on a bright sky and on
@@ -1655,15 +1710,32 @@ function skWorkSize(w, h, megapixels){
 // because the frame that goes up is painted: the grown ring shows ground and
 // sky, so there is nothing there inviting a second tree. Without the paint,
 // do not bring this back.
-function skMaskBlob(type, W, H, grow){
+function skMaskBlob(type, W, H, grow, foot){
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   const mine = SK.strokes.filter(s => s.type === type);
   skPaint(ctx, mine, W, H, '#fff', Math.max(0, grow || 0));
+
+  // A trunk that stops inside the frame needs somewhere to put its base. The
+  // mask is otherwise exactly the stroke, and a base is wider than the trunk it
+  // holds up and sits on ground that has to close around it — with nothing
+  // spare, the first attempt came back as a pole sawn off in mid-air above the
+  // pavement. So a short wedge at the foot of each stroke, wider than the
+  // stroke and reaching a little below where it ended. Only at the foot: widen
+  // the whole thing and the trunk is fat again, which is the bug this replaced.
+  if(foot){
+    for(const st of mine){
+      const low = st.pts.reduce((a, b) => (b[1] > a[1] ? b : a), st.pts[0]);
+      skPaint(ctx, [{ type, size: st.size * 2.4,
+        pts: [[low[0], low[1] - 0.02], [low[0], low[1] + 0.025]] }], W, H, '#fff');
+    }
+  }
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
+// Only a trunk has a foot worth showing.
+const SK_HAS_FOOT = { fgtrunk:1 };
 
 // How many separate things were drawn — not how many strokes it took to draw
 // them. Strokes that touch are one object.
@@ -1715,16 +1787,23 @@ function skPasses(){
     byType[s.type].push(s);
   }
   return drawn
-    .map((t, i) => ({ type: t, count: skGroupCount(byType[t]), order: SK_TYPE_BY_ID[t].order, seq: i }))
+    // A stroke that stops inside the frame is a trunk whose foot you can see,
+    // and a foot needs a base — peetz asked for it after drawing down to the
+    // grass and getting a pole that just ended. One that runs off the bottom
+    // edge has no foot to show. The drawing already says which, so nothing new
+    // to set: the lowest point decides it.
+    .map((t, i) => ({ type: t, count: skGroupCount(byType[t]), order: SK_TYPE_BY_ID[t].order, seq: i,
+      grounded: byType[t].every(st => st.pts.every(p => p[1] < 0.97)) }))
     .sort((a, b) => (a.order - b.order) || (a.seq - b.seq));
 }
 
 function skRefreshPrompt(){
   const p = skPasses()[0];
-  $('skPrompt').value = p ? buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type] }) : '';
+  $('skPrompt').value = p ? buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type], grounded: p.grounded }) : '';
 }
 
 function skRefreshUI(){
+  skBrushRefresh();
   // The badge counts things, the same way the prompt does, so the number on the
   // chip is the number the model will be asked for.
   const counts = {};
@@ -1825,7 +1904,7 @@ function skSyncMode(){
     if(!p) return;
     cv.setPointerCapture(e.pointerId);
     SK.hover = p;
-    SK.cur = { type: SK.type, size: parseFloat($('skBrush').value), pts: [p], line: !!SK_TYPE_BY_ID[SK.type].line };
+    SK.cur = { type: SK.type, size: skBrushSize(), pts: [p], line: !!SK_TYPE_BY_ID[SK.type].line };
     skRedraw();
   });
   // Runs whether or not a stroke is in progress: the ring has to follow the
@@ -1850,6 +1929,7 @@ function skSyncMode(){
   cv.addEventListener('pointerup', finish);
   cv.addEventListener('pointercancel', finish);
 
+  $('skBrush').addEventListener('input', skBrushRefresh);
   $('skUndo').addEventListener('click', () => { SK.strokes.pop(); skRedraw(); skRefreshUI(); });
   $('skClear').addEventListener('click', () => { SK.strokes = []; skRedraw(); skRefreshUI(); });
   document.querySelectorAll('#stageTabs .stg').forEach(b =>
@@ -1963,7 +2043,9 @@ async function runSketchPasses(){
       painted = await skPaintedBlob(curImg, p.type, ww, wh);
       inputName = await uploadBlob(painted, 'sketchpaint_' + stamp + '_' + p.type + '.png');
       maskName  = full ? undefined
-        : await uploadBlob(await skMaskBlob(p.type, mw, mh, room), 'sketchmask_' + stamp + '_' + p.type + '.png');
+        : await uploadBlob(await skMaskBlob(p.type, mw, mh,
+            SK_TYPE_BY_ID[p.type].noRoom ? 0 : room, SK_HAS_FOOT[p.type] && p.grounded),
+            'sketchmask_' + stamp + '_' + p.type + '.png');
     }catch(e){
       log('อัปโหลดภาพที่วาดไม่สำเร็จ: ' + e.message, 'err');
       break;
@@ -1975,7 +2057,7 @@ async function runSketchPasses(){
       // A different seed per pass: the same one twice correlates what appears
       // in two unrelated masks.
       seed: seed + i,
-      prompt: buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type] })
+      prompt: buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type], grounded: p.grounded })
     })), SAVE_IMAGE_NODE_ID_SSS);
 
     if(!img){ log('หยุดที่รอบ ' + (i+1) + ' — ผลของรอบก่อนหน้ายังใช้ได้', 'err'); break; }

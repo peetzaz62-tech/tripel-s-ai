@@ -407,7 +407,11 @@
 #view-app .sk-tools{display:flex;align-items:center;gap:12px;margin-left:auto;}
 #view-app .sk-size{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;
     color:var(--ink-soft);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap;}
-#view-app .sk-size input[type=range]{width:90px;}
+#view-app .sk-size input[type=range]{width:190px;}
+/* The number is the point of the control, so it is set in a fixed-width slot
+   and does not shuffle the row as it changes. */
+#view-app .sk-size b{min-width:26px;text-align:right;font-size:12px;color:var(--ink);}
+#view-app .sk-size span{color:var(--ink-faint);white-space:nowrap;}
 #view-app .sk-stagewrap{
     position:relative;flex:1;min-height:220px;
     background:var(--ink);border:1px solid var(--hair-strong);border-radius:2px;overflow:hidden;
