@@ -1227,14 +1227,14 @@ const SK_TYPES = [
   // a trunk or a branch by construction — the brush has to be wound right down
   // to draw one — so the thin ones are stamped in bark instead.
   { id:'tree',   label:'ต้นไม้',   color:'#3FA34D', paint:'#3A682C', paintThin:'#5C442C', order:1 },
-  // พุ่มใบ and ลำต้น were here until 2026-08-20. They existed for one reason:
-  // a stroke round a whole tree came back as a canopy with no trunk, so the
-  // two halves had to be asked for separately. Painting the stroke into the
-  // frame fixed that, and one chip now gives the trunk the drawing asks for.
-  // Splitting became actively worse: with the default scope each chip is a
-  // whole-frame pass, so two chips means the scenery is regenerated twice.
-  // peetz's own run proved it — canopy and trunk failed exactly as the single
-  // chip did, so the split was never what stood between him and a tree.
+  // พุ่ม and ลำต้น were dropped on 2026-08-20 and asked for back the same day.
+  // The reason for dropping them was that every chip was a whole-frame pass
+  // then, so splitting a tree in two doubled the damage to the scenery. Scope
+  // defaults to masked now and each pass is local, so that cost is gone — and
+  // splitting buys something the single chip decides by guesswork: which part
+  // is bark and which is foliage, instead of inferring it from stroke width.
+  { id:'canopy', label:'พุ่ม',      color:'#6FBF4A', paint:'#3A682C', order:1 },
+  { id:'trunk',  label:'ลำต้น',    color:'#8B5E34', paint:'#5C442C', order:2 },
   { id:'rock',   label:'หิน',      color:'#8A8F98', paint:'#807C76', order:1 },
   { id:'people', label:'คน',       color:'#E0632F', paint:'#68635E', order:3 },
   { id:'car',    label:'รถ',       color:'#2D6CDF', paint:'#96989C', order:3 },
@@ -1323,6 +1323,19 @@ const SK_WHAT = {
   tree: n => n === 1
     ? `The only change is that a tree now grows in it: a real tree standing on the ground with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around it.`
     : `The only change is that trees now grow in it: real trees standing on the ground, each with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around them.`,
+  // Says nothing about a trunk or about the ground. This region is the crown
+  // and only the crown; whatever holds it up is the trunk pass's problem, and
+  // mentioning it here is what let foliage wander down the trunk's strip.
+  canopy: n => n === 1
+    ? `The only change is that the leafy crown of a tree now fills it: dense foliage carried on spreading branches, thinning to open sky at its edges, at a believable size for the space around it.`
+    : `The only change is that the leafy crowns of trees now fill it: dense foliage carried on spreading branches, thinning to open sky at their edges, at a believable size for the space around them.`,
+  // The two clauses that matter: it reaches the ground at the bottom, and it
+  // reaches the foliage at the top. Both ends are named because both ends are
+  // where the previous attempts stopped short. Order 2 puts it after the crown,
+  // so the crown is already in the frame for it to grow up and meet.
+  trunk: n => n === 1
+    ? `The only change is that the trunk of a tree now rises through it: real bark on a single upright stem, standing on the ground at its foot where it meets the surface it grows out of, and carrying its branches up into the foliage above, at a believable thickness for its height.`
+    : `The only change is that the trunks of trees now rise through it: real bark on upright stems, each standing on the ground at its foot where it meets the surface it grows out of, and carrying its branches up into the foliage above, at a believable thickness for its height.`,
   rock: n => n === 1
     ? `The only change is that a natural rock now rests on the ground: weathered stone sitting where it lies, at a believable size for the space around it.`
     : `The only change is that natural rocks now rest on the ground: weathered stone sitting where it lies, at a believable size for the space around them.`,
@@ -1946,7 +1959,18 @@ function skSyncMode(){
   // collect. There is nothing to observe it from otherwise, and a stage whose
   // overlay stops following it puts every later stroke somewhere else in the
   // mask than on screen.
-  SK.ro = new ResizeObserver(() => { if(SK.stage === 'sketch') skFitCanvas(); });
+  // Refit only when the stage really changed size. The observer fires for any
+  // reported size, including the one it is already at, and every refit resizes
+  // the canvas element — which clears it and repaints it. That is the flash
+  // peetz saw while dragging the brush.
+  let fitW = 0, fitH = 0;
+  SK.ro = new ResizeObserver(() => {
+    if(SK.stage !== 'sketch') return;
+    const w = $('skWrap').clientWidth, h = $('skWrap').clientHeight;
+    if(w === fitW && h === fitH) return;
+    fitW = w; fitH = h;
+    skFitCanvas();
+  });
   SK.ro.observe($('skWrap'));
   $('skScope').addEventListener('change', skSyncScope);
   skSyncScope();
