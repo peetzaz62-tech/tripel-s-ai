@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-20w">
+<link rel="stylesheet" href="styles.css?v=2026-08-20x">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -566,6 +566,10 @@
               <input type="number" id="skRoom" value="5" step="1" min="0" max="20">
               <span class="fieldhint">ใช้เฉพาะโหมด <b>เฉพาะรอบรูปที่วาด</b> · รูปที่วาดคือ<b>รูปร่าง</b> ค่านี้คือ<b>ที่ว่างรอบๆ</b> ให้กิ่งแตกและเงาตกลงพื้นได้<br><b>0</b> = ตันเหมือนก้อน · <b>5</b> = เป็นธรรมชาติ ฉากหลังแทบไม่ขยับ · <b>10 ขึ้นไป</b> = ใกล้โหมดทั้งภาพ</span>
             </label>
+            <label class="field">
+              <span><label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;"><input type="checkbox" id="skSettle" checked style="width:auto;margin:0;"> เก็บเงาให้ด้วย (เจนเพิ่มอีก 1 รอบ)</label></span>
+              <span class="fieldhint">รอบที่วาดจะเก็บของให้อยู่ตรงที่วาดเป๊ะ แต่เงาตกนอกกรอบที่วาดจึงวาดไม่ได้ · เปิดไว้จะเจนต่ออีกรอบโดย<b>ไม่เพิ่มอะไรใหม่</b> ขอแค่ให้สิ่งที่ยืนอยู่ในแสงทอดเงาลงพื้น<br>วัดแล้วพื้นมืดลงจาก 160.6 เป็น 153.0 และภาพรวมขยับ 8.1 จาก 255 · <b>ใช้เวลาเพิ่มอีก 1 รอบ</b> ปิดได้ถ้าไม่ต้องการเงา</span>
+            </label>
             <label class="field" id="skLockField">
               <span><label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;"><input type="checkbox" id="skLock" style="width:auto;margin:0;"> ล็อกพิกเซลนอกกรอบให้เหมือนเดิม 100%</label></span>
               <span class="fieldhint">ปิดไว้ — เพราะเงาของสิ่งที่เพิ่มมักตกออกนอกกรอบที่วาด ถ้าเปิดจะได้ภาพเดิมเป๊ะนอกกรอบ แต่เงาที่ล้นออกมาจะถูกลบไปด้วย</span>
@@ -820,6 +824,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-20w"></script>
+<script src="app.js?v=2026-08-20x"></script>
 </body>
 </html>

@@ -1792,6 +1792,22 @@ const SK_HAS_FOOT = { fgtrunk:1 };
 // throws shadows, and peetz picked it on the strength of SSS_00577.
 const SK_ALWAYS_MASK = { fgtrunk:1, fgleaf:1 };
 
+// The settle pass. A masked run puts the thing exactly where it was drawn and
+// cannot cast its shadow, because the shadow lands on ground the mask is
+// holding still — measured, the ground beside a masked tree stays at 160.6
+// against 161.2 untouched, while an unmasked run takes it to 153.5. Room does
+// not buy it back either; a shadow crosses half the picture.
+//
+// So the shadow is a second pass rather than a compromise on the first. It adds
+// nothing — there is no drawing in it and nothing to place — it only asks that
+// what is already standing in the light drop a shadow, unmasked so the ground
+// is free to darken. Measured on a masked render that had none: ground 160.6 ->
+// 153.0, whole frame moved 8.10, and the tree itself stayed put.
+//
+// It runs once at the end, not once per chip, so a three-chip run costs one
+// extra pass and not three.
+const SK_SETTLE = `This is a finished photograph. Leave it exactly as it is — the same place, the same objects in the same positions, the same materials, the same colours, the same lighting and the same camera. Nothing already in the frame is moved, replaced, restyled or removed. The one thing that is completed is the light: everything standing in it casts its own shadow onto the ground, falling in the same direction and with the same softness as the shadows already there.`;
+
 // How many separate things were drawn — not how many strokes it took to draw
 // them. Strokes that touch are one object.
 //
@@ -2157,6 +2173,26 @@ async function runSketchPasses(){
         log('ส่งภาพต่อเข้ารอบถัดไปไม่ได้: ' + e.message, 'err');
         break;
       }
+    }
+  }
+
+  if(last && $('skSettle').checked){
+    try{
+      log('รอบเก็บเงา — ไม่เพิ่มอะไรใหม่ ขอแค่ให้สิ่งที่ยืนอยู่ในแสงทอดเงาลงพื้น');
+      const res = await fetch(viewUrlFor(last));
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const name = await uploadBlob(await res.blob(), 'sketchsettle_' + stamp + '.png');
+      const settled = await submitAndWait(buildSSSPrompt(Object.assign({}, common, {
+        imageName: name,
+        maskImage: undefined,
+        denoise: 0.85,
+        seed: seed + passes.length,
+        prompt: SK_SETTLE
+      })), SAVE_IMAGE_NODE_ID_SSS);
+      if(settled) last = settled;
+    }catch(e){
+      // The placement pass already succeeded; a failed settle must not lose it.
+      log('รอบเก็บเงาไม่สำเร็จ: ' + e.message + ' — ใช้ผลจากรอบก่อนหน้าได้', 'err');
     }
   }
 
