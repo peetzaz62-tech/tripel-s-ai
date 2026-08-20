@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-20u">
+<link rel="stylesheet" href="styles.css?v=2026-08-20v">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -560,14 +560,14 @@
             <label class="field">
               <span>ขอบเขตการเจน</span>
               <select id="skScope">
-                <option value="masked" selected>เฉพาะรอบรูปที่วาด — ได้ตามที่วาด (แนะนำ)</option>
-                <option value="full">ทั้งภาพ — ปล่อยให้ AI คิดใหม่ทั้งเฟรม</option>
+                <option value="full" selected>ทั้งภาพ — เป็นธรรมชาติ มีเงา (แนะนำ)</option>
+                <option value="masked">เฉพาะรอบรูปที่วาด — ตำแหน่งเป๊ะ ไม่มีเงา</option>
               </select>
               <span class="fieldhint"><b>เฉพาะรอบรูปที่วาด</b> — ต้นไม้ขึ้นตรงที่วาด ขนาดตามที่วาด สีที่ป้ายไม่มีทางค้างในภาพ และนอกกรอบที่วาดเหมือนเดิมทุกพิกเซล<br><b>ทั้งภาพ</b> — AI เจนใหม่ทั้งเฟรมโดยใช้รูปที่วาดเป็นแค่คำใบ้ ตำแหน่งและขนาดจะไม่ตรงที่วาด และฉากหลังอย่างถนนหรือตึกไกลๆ จะถูกวาดใหม่ · <b>สัดส่วนภาพไม่เปลี่ยน</b> ทั้งสองแบบ</span>
             </label>
             <label class="field" id="skDenoiseField">
               <span>ยึดภาพเดิมแค่ไหน — denoise</span>
-              <input type="number" id="skDenoise" value="1" step="0.05" min="0.5" max="1">
+              <input type="number" id="skDenoise" value="0.85" step="0.05" min="0.5" max="1">
               <span class="fieldhint">ใช้เฉพาะโหมด <b>ทั้งภาพ</b> · นี่คือปุ่มที่ตัดสินว่า<b>ผลลัพธ์จะเกาะรูปที่วาดแค่ไหน</b><br><b>0.85</b> = ต้นไม้ขึ้นตรงที่วาด ขนาดตามที่วาด (แนะนำ) · <b>0.90</b> = เริ่มบานออกและเลื่อนตำแหน่ง · <b>1.00</b> = AI เลือกตำแหน่งและขนาดเอง รูปที่วาดเป็นแค่คำใบ้<br>ค่านี้ถูกปัดเป็นจำนวนสเต็ป <b>0.88 กับ 0.92 คือภาพเดียวกันเป๊ะ</b> · ถ้าเจนแล้วไม่มีอะไรเกิดขึ้น ให้เพิ่มค่านี้ทีละ 0.05</span>
             </label>
             <label class="field" id="skRoomField">
@@ -829,6 +829,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-20u"></script>
+<script src="app.js?v=2026-08-20v"></script>
 </body>
 </html>

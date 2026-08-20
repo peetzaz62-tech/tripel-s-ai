@@ -1785,6 +1785,13 @@ function skMaskBlob(type, W, H, grow, foot){
 // Only a trunk has a foot worth showing.
 const SK_HAS_FOOT = { fgtrunk:1 };
 
+// Framing is masked whatever the scope says, because the mask is what makes a
+// drawn width come back as that width — and width is the whole control for
+// something standing in front of the lens. Everything else follows the scope
+// the user picked, which defaults to the unmasked run: that is the one that
+// throws shadows, and peetz picked it on the strength of SSS_00577.
+const SK_ALWAYS_MASK = { fgtrunk:1, fgleaf:1 };
+
 // How many separate things were drawn — not how many strokes it took to draw
 // them. Strokes that touch are one object.
 //
@@ -2094,8 +2101,9 @@ async function runSketchPasses(){
 
   for(let i = 0; i < passes.length; i++){
     const p = passes[i];
+    const passMasked = !full || SK_ALWAYS_MASK[p.type];
     log('รอบที่ ' + (i+1) + '/' + passes.length + ' · ' + SK_TYPE_BY_ID[p.type].label + ' · ' + p.count
-      + ' ชิ้น · ' + (full
+      + ' ชิ้น · ' + (!passMasked
         ? (common.denoise >= 1
             ? 'วาดใหม่ทั้งภาพ ' + skSteps + ' สเต็ป'
             : 'เจนทั้งภาพ denoise ' + common.denoise.toFixed(2) + ' = ' + Math.round(skSteps * common.denoise) + '/' + skSteps + ' สเต็ป')
@@ -2106,7 +2114,7 @@ async function runSketchPasses(){
       const [ww, wh] = common.scaleTo;
       painted = await skPaintedBlob(curImg, p.type, ww, wh);
       inputName = await uploadBlob(painted, 'sketchpaint_' + stamp + '_' + p.type + '.png');
-      maskName  = full ? undefined
+      maskName  = (full && !SK_ALWAYS_MASK[p.type]) ? undefined
         : await uploadBlob(await skMaskBlob(p.type, mw, mh,
             SK_TYPE_BY_ID[p.type].noRoom ? 0 : room, SK_HAS_FOOT[p.type] && p.grounded),
             'sketchmask_' + stamp + '_' + p.type + '.png');
@@ -2118,6 +2126,9 @@ async function runSketchPasses(){
     const img = await submitAndWait(buildSSSPrompt(Object.assign({}, common, {
       imageName: inputName,
       maskImage: maskName,
+      // A mask has nothing to protect unless the sampler starts from the
+      // source's own latent, which is the denoise-1 branch.
+      denoise: maskName ? 1 : common.denoise,
       // A different seed per pass: the same one twice correlates what appears
       // in two unrelated masks.
       seed: seed + i,
