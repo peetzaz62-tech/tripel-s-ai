@@ -1312,8 +1312,13 @@ const SK_DAYLIT_PL = ` They are lit by the light already in the frame, catching 
 // Foreground framing gets neither clause. It stands between the camera and the
 // scene, so it has no ground to put a shadow on, and its whole job is to leave
 // the picture behind it exactly as it was.
-const SK_FRAME = ` It is lit by the same light as the scene behind it, and the scene behind it keeps the exposure, the colour and the sharpness it already had.`;
-const SK_FRAME_PL = ` They are lit by the same light as the scene behind them, and the scene behind them keeps the exposure, the colour and the sharpness it already had.`;
+// The first version of this forbade the scene behind from changing at all,
+// which also forbade the one change it should make: a thing standing in the
+// light throws a shadow, and peetz's framing came back with none while the
+// ต้นไม้ chip — which has the ordinary shadow clause — looked right. So the
+// shadow is asked for, and only what is beyond it is held still.
+const SK_FRAME = ` It is lit by the same light as the scene behind it and casts its own shadow across the ground in the same direction and with the same softness as the shadows already there; beyond that shadow the scene keeps the exposure, the colour and the sharpness it already had.`;
+const SK_FRAME_PL = ` They are lit by the same light as the scene behind them and cast their own shadows across the ground in the same direction and with the same softness as the shadows already there; beyond those shadows the scene keeps the exposure, the colour and the sharpness it already had.`;
 const SK_FRAMING = { fgtrunk:1, fgleaf:1 };
 
 // Light sources need the opposite clause: they give light rather than take it.
@@ -1366,19 +1371,19 @@ const SK_WHAT = {
   // that — so the sentence stays out of it.
   fgtrunk: (n, p) => (p && p.grounded)
     ? (n === 1
-        ? `The only change is that the trunk of a tree now stands between the camera and the scene: rough bark running up out of the top of the frame with its crown out of view, and at the bottom the base of it widening where it meets the ground, the ground closing around the foot with its own grass and fallen litter, reading darker than the scene behind it, and a little soft because the camera is focused past it on that scene.`
-        : `The only change is that the trunks of trees now stand between the camera and the scene: rough bark, each trunk exactly as thick as it is drawn, the thickest of them nearest the camera, all running up out of the top of the frame with their crowns out of view, and at the bottom the base of each widening where it meets the ground, the ground closing around the feet with its own grass and fallen litter, all reading darker than the scene behind them, and softest on the nearest because the camera is focused past them on that scene.`)
+        ? `The only change is that the trunk of a tree now stands between the camera and the scene: rough bark running up out of the top of the frame with its crown out of view, a few small leafy shoots breaking straight from the bark here and there as they do on a real trunk, and at the bottom the base of it widening where it meets the ground, the ground closing around the foot with its own grass and fallen litter, reading darker than the scene behind it, and a little soft because the camera is focused past it on that scene.`
+        : `The only change is that the trunks of trees now stand between the camera and the scene: rough bark, each trunk exactly as thick as it is drawn, the thickest of them nearest the camera, all running up out of the top of the frame with their crowns out of view, a few small leafy shoots breaking straight from the bark here and there as they do on real trunks, and at the bottom the base of each widening where it meets the ground, the ground closing around the feet with its own grass and fallen litter, all reading darker than the scene behind them, and softest on the nearest because the camera is focused past them on that scene.`)
     : (n === 1
-    ? `The only change is that the trunk of a tree now stands between the camera and the scene: rough bark running out of the top and the bottom of the frame so that neither the crown nor the foot of it is in view, reading darker than the scene behind it, and a little soft because the camera is focused past it on that scene.`
-    : `The only change is that the trunks of trees now stand between the camera and the scene: rough bark, each trunk exactly as thick as it is drawn, the thickest of them nearest the camera and running out of both the top and the bottom of the frame, the thinner ones standing further back among them so that the stand has depth to it, all reading darker than the scene behind them, and softest on the nearest because the camera is focused past them on that scene.`),
+    ? `The only change is that the trunk of a tree now stands between the camera and the scene: rough bark running out of the top and the bottom of the frame so that neither the crown nor the foot of it is in view, a few small leafy shoots breaking straight from the bark here and there as they do on a real trunk, reading darker than the scene behind it, and a little soft because the camera is focused past it on that scene.`
+    : `The only change is that the trunks of trees now stand between the camera and the scene: rough bark, each trunk exactly as thick as it is drawn, the thickest of them nearest the camera and running out of both the top and the bottom of the frame, the thinner ones standing further back among them so that the stand has depth to it, a few small leafy shoots breaking straight from the bark here and there as they do on real trunks, all reading darker than the scene behind them, and softest on the nearest because the camera is focused past them on that scene.`),
   // "seen from arm's length" and "larger than anything behind" both pushed the
   // scale up, and what came back was three or four enormous leaves. What the
   // photographs actually show is the outer edge of a canopy: slender twigs
   // carrying a lot of small leaves. Say that instead, and say the depth in
   // terms of tone rather than size, or the size climbs again.
   fgleaf: n => n === 1
-    ? `The only change is that the outer branches of a tree now reach into the frame from just outside it: a slender branch dividing into fine twigs that carry many small leaves, entering from the edge of the frame with the tree they belong to out of shot, hanging in front of the scene and reading darker than it, and a little soft because the camera is focused past them on the scene beyond.`
-    : `The only change is that the outer branches of trees now reach into the frame from just outside it: slender branches dividing into fine twigs that carry many small leaves, entering from the edges of the frame with the trees they belong to out of shot, hanging in front of the scene and reading darker than it, and a little soft because the camera is focused past them on the scene beyond.`
+    ? `The only change is that the outer branches of a tree now reach into the frame from just outside it: a spreading branch carrying the ordinary broad leaves of a shade tree, full and overlapping rather than sparse, entering from the edge of the frame with the tree they belong to out of shot, hanging in front of the scene and reading darker than it, and a little soft because the camera is focused past them on the scene beyond.`
+    : `The only change is that the outer branches of trees now reach into the frame from just outside it: spreading branches carrying the ordinary broad leaves of a shade tree, full and overlapping rather than sparse, entering from the edges of the frame with the trees they belong to out of shot, hanging in front of the scene and reading darker than it, and a little soft because the camera is focused past them on the scene beyond.`
 };
 const SK_EMITTING = { lamp:1, hidden:1 };
 
@@ -1701,6 +1706,30 @@ function skWorkSize(w, h, megapixels){
   return err(legacy[0], legacy[1]) <= err(best.w, best.h) + 1e-9 ? legacy : [best.w, best.h];
 }
 
+// Sketch to Add edits a photograph that is already the size it wants to be, so
+// it works at that size and hands it back unchanged. Everything else in the
+// tool is a render, where the megapixel setting picks the output; here the
+// input IS the output, and resizing it was silently moving the picture.
+//
+// peetz said the frame felt like it was shifting, and it was: 1376x592 in came
+// back 1488x640 — bigger than it went in — and 1504x816 came back 1328x720.
+// Not a drift inside the frame (an offset search over the untouched half of
+// eight renders finds dx=0 dy=0 every time), just a different size and a
+// hundredth of a percent of aspect each round trip.
+//
+// Frames out of this tool are already multiples of 16, so almost always there
+// is nothing to do. A frame from somewhere else is nudged to the nearest 16,
+// at most 8px a side. Only something too big to sample is handed to the
+// megapixel path, and the run says so when that happens.
+const SK_MAX_PIXELS = 2.25 * 1024 * 1024;
+
+function skSketchSize(w, h, megapixels){
+  if(w % 16 === 0 && h % 16 === 0 && w * h <= SK_MAX_PIXELS) return [w, h];
+  const near = [Math.max(16, Math.round(w / 16) * 16), Math.max(16, Math.round(h / 16) * 16)];
+  if(near[0] * near[1] <= SK_MAX_PIXELS) return near;
+  return skWorkSize(w, h, megapixels);
+}
+
 // The mask is the drawing plus a margin, and the margin is the whole point.
 //
 // A mask that hugs the stroke exactly forces every leaf inside a solid blob, so
@@ -1741,8 +1770,14 @@ function skMaskBlob(type, W, H, grow, foot){
   if(foot){
     for(const st of mine){
       const low = st.pts.reduce((a, b) => (b[1] > a[1] ? b : a), st.pts[0]);
-      skPaint(ctx, [{ type, size: st.size * 2.4,
-        pts: [[low[0], low[1] - 0.02], [low[0], low[1] + 0.025]] }], W, H, '#fff');
+      // Wide enough for the base and the ground it stands on. Long enough for a
+      // cast shadow it is not: extending it to 7.5% of the frame below each
+      // foot changed the ground brightness under the trunks from 52.0 to 52.2,
+      // which is nothing. A framing element cut off by the frame does not get
+      // a shadow out of this graph — see the note in memory before trying
+      // again.
+      skPaint(ctx, [{ type, size: st.size * 4,
+        pts: [[low[0], low[1] - 0.015], [low[0], low[1] + 0.03]] }], W, H, '#fff');
     }
   }
   return new Promise(r => c.toBlob(r, 'image/png'));
@@ -2020,7 +2055,7 @@ async function runSketchPasses(){
     megapixels: parseFloat($('skMegapixels').value),
     // Fixed for the whole run, from the frame that was uploaded. Every pass
     // works at one size, so chaining cannot drift the proportions either.
-    scaleTo: skWorkSize(img.naturalWidth, img.naturalHeight, parseFloat($('skMegapixels').value)),
+    scaleTo: skSketchSize(img.naturalWidth, img.naturalHeight, parseFloat($('skMegapixels').value)),
     lockOutside: $('skLock').checked,
     // Below 1 the sampler starts from the painted frame instead of from noise,
     // which is what lets the drawing steer a run that has no mask to steer it.
@@ -2044,6 +2079,11 @@ async function runSketchPasses(){
     // the seam it was labelled for. Left at zero rather than pretending.
     maskFeather: 0
   };
+
+  if(common.scaleTo[0] !== img.naturalWidth || common.scaleTo[1] !== img.naturalHeight){
+    log('ภาพถูกปรับขนาดจาก ' + img.naturalWidth + '×' + img.naturalHeight
+      + ' เป็น ' + common.scaleTo[0] + '×' + common.scaleTo[1] + ' เพื่อให้เจนได้', 'err');
+  }
 
   const stamp = Date.now();
   // The frame each pass starts from, as a decoded image rather than a name:
@@ -2209,8 +2249,13 @@ function refreshWorkNotes(){
     const el = $(noteId);
     if(!el || !$(mpId)) continue;
     if(!img || !img.naturalWidth){ el.textContent = ''; continue; }
-    const [w, h] = skWorkSize(img.naturalWidth, img.naturalHeight, parseFloat($(mpId).value));
-    el.textContent = 'ผืนผ้าใบ ' + w + '×' + h + ' · seed ใช้ซ้ำได้เฉพาะกับภาพและขนาดนี้';
+    const [w, h] = noteId === 'skWorkNote'
+      ? skSketchSize(img.naturalWidth, img.naturalHeight, parseFloat($(mpId).value))
+      : skWorkSize(img.naturalWidth, img.naturalHeight, parseFloat($(mpId).value));
+    const kept = (w === img.naturalWidth && h === img.naturalHeight);
+    el.textContent = 'ผืนผ้าใบ ' + w + '×' + h
+      + (noteId === 'skWorkNote' && kept ? ' · เท่าภาพที่อัปโหลดพอดี' : '')
+      + ' · seed ใช้ซ้ำได้เฉพาะกับภาพและขนาดนี้';
   }
 }
 ['sMegapixels','apMegapixels','skMegapixels'].forEach(id => {
