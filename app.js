@@ -1752,6 +1752,11 @@ function skSketchSize(w, h, megapixels){
 // because the frame that goes up is painted: the grown ring shows ground and
 // sky, so there is nothing there inviting a second tree. Without the paint,
 // do not bring this back.
+// Which types stand on the ground and therefore throw a shadow across it. Not
+// the lights, which give light rather than take it, and not the framing, which
+// is in front of the camera and has no ground of its own.
+const SK_ON_GROUND = { tree:1, canopy:1, trunk:1, rock:1, people:1, car:1, animal:1 };
+
 function skMaskBlob(type, W, H, grow, foot){
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
@@ -1767,6 +1772,30 @@ function skMaskBlob(type, W, H, grow, foot){
   // pavement. So a short wedge at the foot of each stroke, wider than the
   // stroke and reaching a little below where it ended. Only at the foot: widen
   // the whole thing and the trunk is fat again, which is the bug this replaced.
+  // The ground the shadow lands on has to be inside the mask or it cannot be
+  // drawn at all — that is the whole reason a masked render had no shadow while
+  // an unmasked one did, and no wording could bridge it, because the pixels
+  // outside a mask are written back every step at the latent level.
+  //
+  // So the mask reaches down to the bottom of the frame from just above where
+  // the drawing meets the ground. Measured on the same drawing and seed, how
+  // much darker beside the tree than away from it, and what it cost:
+  //
+  //   mask alone           +1.3   no shadow          frame moved 7.66
+  //   mask + this apron    -4.1   shadow             frame moved 8.37
+  //   no mask at all       -1.2   weaker shadow      frame moved 9.36
+  //
+  // Better than regenerating everything on both counts: the building, the sky
+  // and the far side of the street stay locked, and only the ground opens up.
+  if(SK_ON_GROUND[type]){
+    const low = mine.reduce((m, st) => Math.max(m, ...st.pts.map(p => p[1])), 0);
+    // A quarter of the frame is as far up as it goes; a canopy drawn high with
+    // no trunk must not turn the apron into half the picture.
+    const top = Math.max(low - 0.04, 0.75);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, Math.round(top * H), W, H - Math.round(top * H));
+  }
+
   if(foot){
     for(const st of mine){
       const low = st.pts.reduce((a, b) => (b[1] > a[1] ? b : a), st.pts[0]);
