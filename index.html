@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-08-21c">
+<link rel="stylesheet" href="styles.css?v=2026-08-26a">
 </head>
 <body>
 <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
@@ -200,6 +200,13 @@
       <div class="card" id="paramsCardMagnific">
         <div class="card-head"><h2>03 · Parameters · SSS Upscale</h2><span class="plate-no">PL.03</span></div>
         <label class="field">
+          <span>Engine</span>
+          <select id="pEngine">
+            <option value="usdu" selected>รายละเอียด · FLUX + 4x-UltraSharp (นอกอาคาร ต้นไม้ หญ้า)</option>
+            <option value="seedvr2">เร็ว · SeedVR2 7B (ในห้อง)</option>
+          </select>
+        </label>
+        <label class="field" id="pPromptField">
           <span>Extra prompt (optional — leave blank to use guidance only)</span>
           <textarea id="pPrompt" placeholder=""></textarea>
         </label>
@@ -208,16 +215,17 @@
             <span>Upscale ×</span>
             <input type="number" id="pUpscaleBy" value="2" step="0.25" min="1" max="4">
           </label>
-          <label class="field">
+          <label class="field" id="pDenoiseField">
             <span>Denoise (higher = more change from original detail)</span>
             <input type="number" id="pDenoise" value="0.15" step="0.01" min="0" max="1">
           </label>
         </div>
-        <label class="field">
+        <label class="field" id="pStepsField">
           <span>Steps</span>
           <input type="number" id="pSteps" value="20" min="1" max="100">
         </label>
-        <div class="hint">Steps และ Denoise ไม่มีผลกับ grain — วัดแล้ว 20 กับ 60 steps ต่างกัน 0.004 (2026-08-18) grain มาจากขั้นขยายภาพ ซึ่งตอนนี้ใช้ lanczos แทน ESRGAN แล้ว · Denoise เกิน 0.15 จะเริ่มลบลายวัสดุจริงทิ้ง</div>
+        <div class="hint" id="pHintUsdu">ขยายด้วย 4x-UltraSharp แล้วให้ FLUX เก็บรายละเอียดทีละ tile — ต้นไม้กับหญ้าคงตามภาพเรนเดอร์ · แลกมาด้วย grain บนผิวเรียบ ถ้าเจอให้ลด Denoise · Steps กับ Denoise ไม่มีผลกับ grain (20 กับ 60 steps ต่างกัน 0.004) · Denoise เกิน 0.15 จะเริ่มลบลายวัสดุจริงทิ้ง</div>
+        <div class="hint" id="pHintSeedvr2" style="display:none;">เร็วกว่าราว 4.5 เท่า และไม่ใช้ prompt เลย · ดีมากกับผิวเรียบ ผนัง ไม้ กระเบื้อง · <b>ห้ามใช้กับภาพที่มีต้นไม้หรือหญ้า</b> — มันจะวาดพุ่มใบใหม่ไม่ตรงกับภาพเรนเดอร์ (วัด 2026-08-26)</div>
         <label class="field">
           <span>Seed</span>
           <div class="seedrow">
@@ -833,6 +841,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-21c"></script>
+<script src="app.js?v=2026-08-26a"></script>
 </body>
 </html>

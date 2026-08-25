@@ -10,25 +10,40 @@ function showView(name){
 // ===================== APP SCRIPT =====================
 
 // ---------------------------------------------------------------------------
-// API-format prompt template for "Magnific Fast":
-// LoadImage -> ImageScaleBy(lanczos) -> UltimateSDUpscaleNoUpscale -> SaveImage.
+// API-format prompt template for the detail engine of SSS Upscale:
+// LoadImage -> 4x-UltraSharp -> ImageScaleBy(down to target)
+//           -> UltimateSDUpscaleNoUpscale -> SaveImage.
 //
-// There is deliberately NO ESRGAN model here any more. Measured 2026-08-18 on a
-// real 3904x2112 SSS exterior, comparing native-resolution crops region by
-// region: essentially all of the grain people complained about was created by
-// the ESRGAN, which turns the source's fine pixel-level noise into larger
-// blotchy mottle. The diffusion pass adds none of it — it slightly reduces it —
-// and steps/denoise are irrelevant (20 vs 60 steps moved grain by 0.004).
+// The ESRGAN went out on 2026-08-18 and came back on 2026-08-26. Both moves
+// were measured, and they measured different things, so keep both numbers.
 //
-// Replacing the ESRGAN with a plain lanczos resize cuts grain hard on every
-// flat man-made surface, which is most of an archviz frame:
+// Why it went out: on a 3904x2112 exterior, comparing native-resolution crops
+// region by region, essentially all of the grain people complained about was
+// made by the ESRGAN turning the source's fine pixel noise into blotchy mottle.
+// Plain lanczos cut it hard on every flat man-made surface:
 //   window frame  3.08 -> 0.87   balcony glass 2.84 -> 0.80
 //   concrete slab 2.22 -> 0.74   block wall    2.18 -> 0.73
 //   paving block  2.12 -> 1.23   road asphalt  1.19 -> 0.58
-// Edge sharpness costs 10-19% there. The one real loss is grass, which needs
-// the high-frequency detail the ESRGAN invents (sharp 127 -> 105, blades blur
-// together); peetz chose this tradeoff knowingly on 2026-08-18 because flat
-// surfaces dominate these frames.
+// costing 10-19% edge sharpness there. The loss recorded at the time was grass
+// (sharp 127 -> 105, blades blurring together).
+//
+// Why it came back: that recorded loss turned out to be the thing that matters
+// on planted frames. On a lake scene full of trees and reeds, the ESRGAN route
+// kept the render's own foliage — same crown, same blades — where lanczos let
+// the diffusion pass soften it. peetz saw both and chose the ESRGAN on
+// 2026-08-26, grain and all. The grain finding above is still true; it is a
+// trade, not a mistake, and Denoise is the knob that trims it back.
+//
+// The ESRGAN runs INSIDE UltimateSDUpscale, not as its own node ahead of it.
+// That is not a style choice. Built the obvious way first — ImageUpscaleWithModel
+// -> ImageScaleBy -> UltimateSDUpscaleNoUpscale — the ESRGAN step alone took
+// 18 minutes on a 2560x1440 frame (03:45 to 04:03 in the ComfyUI log) where the
+// same model on the same image takes 23 seconds from a cold card. The previous
+// run had left flux1-dev-fp8 resident, ComfyUI logged "0 models unloaded" and
+// gave RRDBNet the 0.9GB that was left, so it crawled through a 10240x5760
+// intermediate in a memory budget far too small for it. UltimateSDUpscale
+// sequences its own upscale against its own model loads and does the whole job
+// in 421s. Do not split it back out.
 // ---------------------------------------------------------------------------
 function buildMagnificPrompt(opts){
   return {
@@ -38,11 +53,10 @@ function buildMagnificPrompt(opts){
     "4": { class_type:"VAELoader", inputs:{ vae_name:"ae.safetensors" } },
     "6": { class_type:"CLIPTextEncode", inputs:{ text: opts.prompt || "", clip:["3",0] } },
     "7": { class_type:"FluxGuidance", inputs:{ conditioning:["6",0], guidance:3.5 } },
-    // Resize first, then refine the already-sized image tile by tile. scale_by
-    // takes the user's Upscale By directly, so no target dimensions to compute.
-    "5": { class_type:"ImageScaleBy", inputs:{ image:["1",0], upscale_method:"lanczos", scale_by: opts.upscaleBy } },
-    "8": { class_type:"UltimateSDUpscaleNoUpscale", inputs:{
-        upscaled_image:["5",0], model:["2",0], positive:["7",0], negative:["7",0], vae:["4",0],
+    "5": { class_type:"UpscaleModelLoader", inputs:{ model_name:"4x-UltraSharp.pth" } },
+    "8": { class_type:"UltimateSDUpscale", inputs:{
+        image:["1",0], upscale_by: opts.upscaleBy, upscale_model:["5",0],
+        model:["2",0], positive:["7",0], negative:["7",0], vae:["4",0],
         // CFG is pinned to 1 and is not a user control. Node "8" wires negative
         // to the same conditioning as positive, so out = neg + cfg*(pos-neg)
         // = neg at every scale — cfg cannot change this image. ComfyUI only
@@ -60,6 +74,75 @@ function buildMagnificPrompt(opts){
   };
 }
 const SAVE_IMAGE_NODE_ID_MAGNIFIC = "9";
+
+// ---------------------------------------------------------------------------
+// The second engine behind SSS Upscale: SeedVR2 7B int8, for interiors.
+//
+// It is a restoration model, not a refiner. There is no text encoder anywhere
+// in this graph — SeedVR2Conditioning builds both conditionings out of the VAE
+// latent alone — so Extra prompt, Denoise and Steps have nothing to attach to
+// and the UI hides them. One sampler step at denoise 1, and that is the whole
+// run: 93s on a 2560x1440 frame against 421s for the detail engine.
+//
+// Measured 2026-08-26 on peetz's own frames, and the split is sharp enough to
+// be the reason this is a choice rather than a replacement:
+//
+//   interior, hard surfaces   excellent, and 4.5x faster
+//   anything planted          it redraws the planting
+//
+// On a lake frame it kept only 0.48 structural agreement with the render in the
+// tree and the reeds (a plain ESRGAN keeps 0.76) — a different crown, different
+// leaf shape, grass blades smoothed into a smear. It is doing what it was
+// trained to do: treat busy texture as compression damage and rebuild it. An
+// interior is nearly all flat man-made surface, where that prior is right.
+//
+// Two knobs were swept and neither helps, so do not reach for them again:
+// more steps makes it worse (structural agreement 0.72 at 1 step, 0.59 at 8),
+// and color_correction only fixes the acid-green tint, never the redrawing.
+// ---------------------------------------------------------------------------
+function buildSeedVR2Prompt(opts){
+  return {
+    "1":  { class_type:"LoadImage", inputs:{ image: opts.imageName } },
+    "2":  { class_type:"UNETLoader", inputs:{ unet_name:"seedvr2_7b_int8_convrot.safetensors", weight_dtype:"default" } },
+    "3":  { class_type:"VAELoader", inputs:{ vae_name:"seedvr2_ema_vae_fp16.safetensors" } },
+    // Carry LoadImage's mask channel through as alpha so PostProcessing can put
+    // it back; Preprocess drops it before the model ever sees it.
+    "4":  { class_type:"JoinImageWithAlpha", inputs:{ image:["1",0], alpha:["1",1] } },
+    "5":  { class_type:"ResizeImageMaskNode", inputs:{
+        resize_type:"scale by multiplier", "resize_type.multiplier": opts.upscaleBy,
+        scale_method:"lanczos", input:["4",0] } },
+    "6":  { class_type:"SeedVR2Preprocess", inputs:{ resized_images:["5",0] } },
+    "7":  { class_type:"VAEEncodeTiled", inputs:{ tile_size:512, overlap:128, temporal_size:4096, temporal_overlap:8, pixels:["6",0], vae:["3",0] } },
+    "8":  { class_type:"SeedVR2Conditioning", inputs:{ model:["2",0], vae_conditioning:["7",0] } },
+    "12": { class_type:"KSampler", inputs:{
+        seed: opts.seed, steps:1, cfg:1, sampler_name:"euler", scheduler:"simple", denoise:1,
+        model:["2",0], positive:["8",0], negative:["8",1], latent_image:["7",0] } },
+    "13": { class_type:"VAEDecodeTiled", inputs:{ tile_size:512, overlap:128, temporal_size:4096, temporal_overlap:8, samples:["12",0], vae:["3",0] } },
+    // 'lab' matches the result's colours back to the source in CIELAB. The
+    // ComfyUI template ships this as 'none', which lets the greens come back
+    // 38% more saturated than the render; the node's own default is 'lab'.
+    "14": { class_type:"SeedVR2PostProcessing", inputs:{ color_correction_method:"lab", images:["13",0], original_resized_images:["5",0] } },
+    "15": { class_type:"SaveImage", inputs:{ images:["14",0], filename_prefix:"upscale_studio" } }
+  };
+}
+const SAVE_IMAGE_NODE_ID_SEEDVR2 = "15";
+
+// Which engine the Upscale card is set to, and the model family it loads.
+// SeedVR2 is a third family alongside flux1 and flux2, so freeIfModelSwitch has
+// to be told about it or a stale FLUX load would sit in VRAM beside it.
+function upscaleEngine(){
+  const el = $('pEngine');
+  return el && el.value === 'seedvr2' ? 'seedvr2' : 'usdu';
+}
+function buildUpscalePrompt(opts){
+  return upscaleEngine() === 'seedvr2' ? buildSeedVR2Prompt(opts) : buildMagnificPrompt(opts);
+}
+function upscaleSaveNodeId(){
+  return upscaleEngine() === 'seedvr2' ? SAVE_IMAGE_NODE_ID_SEEDVR2 : SAVE_IMAGE_NODE_ID_MAGNIFIC;
+}
+function upscaleModelKind(){
+  return upscaleEngine() === 'seedvr2' ? 'seedvr2' : 'flux1';
+}
 
 // ---------------------------------------------------------------------------
 // API-format prompt template for "SSS · Skp to Render" — Flux.2 Dev image-edit.
@@ -2296,6 +2379,22 @@ function updateRunEnabled(){
 $('btnRandSeedMagnific').addEventListener('click', ()=>{
   $('pSeed').value = Math.floor(Math.random()*1_000_000_000);
 });
+
+// SeedVR2 has no text encoder and takes exactly one step, so the three controls
+// that only mean something to the diffusion refiner are hidden rather than left
+// on screen doing nothing. Upscale By and Seed apply to both engines.
+function applyUpscaleEngine(){
+  const seed = upscaleEngine() === 'seedvr2';
+  for(const id of ['pPromptField','pDenoiseField','pStepsField']){
+    const el = $(id);
+    if(el) el.style.display = seed ? 'none' : '';
+  }
+  const hintU = $('pHintUsdu'), hintS = $('pHintSeedvr2');
+  if(hintU) hintU.style.display = seed ? 'none' : '';
+  if(hintS) hintS.style.display = seed ? '' : 'none';
+}
+if($('pEngine')) $('pEngine').addEventListener('change', applyUpscaleEngine);
+applyUpscaleEngine();
 $('btnRandSeedSSS').addEventListener('click', ()=>{
   $('sSeed').value = Math.floor(Math.random()*1_000_000_000);
 });
@@ -2409,11 +2508,11 @@ async function runWorkflow(){
       steps: parseInt($('pSteps').value),
       seed: parseInt($('pSeed').value)
     };
-    prompt = buildMagnificPrompt(opts);
-    saveImageNodeId = SAVE_IMAGE_NODE_ID_MAGNIFIC;
+    prompt = buildUpscalePrompt(opts);
+    saveImageNodeId = upscaleSaveNodeId();
   }
 
-  await freeIfModelSwitch(state.workflow === 'magnific' ? 'flux1' : 'flux2');
+  await freeIfModelSwitch(state.workflow === 'magnific' ? upscaleModelKind() : 'flux2');
 
   const img = await submitAndWait(prompt, saveImageNodeId);
   if(img) showRunResult(img);
@@ -2518,20 +2617,23 @@ async function upscaleLastResult(){
     btn.disabled = false; updateRunEnabled(); return;
   }
 
-  // Upscale is the one mode on flux1, so coming from any other mode is always a
-  // model-family switch — the one case where ComfyUI's own eviction was
-  // measured not to keep up.
-  await freeIfModelSwitch('flux1');
+  // Upscale is the only mode that leaves the flux2 family, so coming from any
+  // other mode is always a model-family switch — the one case where ComfyUI's
+  // own eviction was measured not to keep up. Which family it lands on now
+  // depends on the engine.
+  await freeIfModelSwitch(upscaleModelKind());
 
-  log('Upscale ×' + $('pUpscaleBy').value + ' · denoise ' + $('pDenoise').value + ' · ' + $('pSteps').value + ' steps');
-  const out = await submitAndWait(buildMagnificPrompt({
+  log(upscaleEngine() === 'seedvr2'
+    ? 'Upscale ×' + $('pUpscaleBy').value + ' · SeedVR2 7B (ในห้อง)'
+    : 'Upscale ×' + $('pUpscaleBy').value + ' · denoise ' + $('pDenoise').value + ' · ' + $('pSteps').value + ' steps');
+  const out = await submitAndWait(buildUpscalePrompt({
     imageName: inputName,
     prompt: $('pPrompt').value,
     upscaleBy: parseFloat($('pUpscaleBy').value),
     denoise: parseFloat($('pDenoise').value),
     steps: parseInt($('pSteps').value),
     seed: parseInt($('pSeed').value)
-  }), SAVE_IMAGE_NODE_ID_MAGNIFIC);
+  }), upscaleSaveNodeId());
 
   if(out) showRunResult(out);
   btn.disabled = false;
