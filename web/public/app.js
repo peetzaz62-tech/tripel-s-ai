@@ -714,6 +714,56 @@ const INT_GLOW = ` The light reads as a soft glow that spreads and wraps around 
 // contradict the mode's own opening sentence.
 const INT_HIGH_KEY = ` The overall exposure is bright and welcoming — a clean, open, high-key photograph rather than a dim or moody one.`;
 
+// ---------------------------------------------------------------------------
+// Interior mood, added 2026-08-26.
+//
+// The three clauses above — glow, high-key, soft shadows — went in on
+// 2026-08-18 because renders were coming back dark and hard-edged and could not
+// be shown to a client. They fixed that, and then some: measured against the
+// 158 reference images peetz curated himself in `dataset/interior`, the shipped
+// look was going the wrong way on every axis.
+//
+//                    mean lum   clipped white   deep shadow   chroma
+//   his reference       110.4          0.45%        15.33%      35.2
+//   shipped output      174.4          9.06%         3.76%      11.6
+//
+// Seven separate clauses were pushing that direction at once: "Bright, clear
+// and even", "pure white with no colour cast", "nothing falls into heavy
+// darkness", "high-key rather than dim or moody", "light lands evenly", "stays
+// plain bright sky", "abundant soft daylight". Rewriting six of them on the
+// same source, seed and model moved it to 120.1 / 2.24% / 9.16% / 25.5 —
+// about four fifths of the way back on exposure and clipping.
+//
+// It is a choice rather than a replacement because the old complaint was real.
+// 'bright' is exactly what shipped before this date.
+// "building gently from the fittings" contradicts FIXTURES_OFF two sentences
+// later, and dropping it looked like free tidying. It is left in because this
+// is the exact string that was measured; the tidier version is untested, and
+// this project has a long record of untested improvements measuring worse.
+const INT_GLOW_DEPTH = ` The light reads as a soft glow that spreads and wraps around forms rather than a direct beam that strikes them, building gently from the fittings and from the bright surfaces it bounces off, so the light falls off gradually across the room and shadow gathers softly in the corners and under the furniture, the frame keeping a full tonal range with genuine dark areas as well as bright ones.`;
+
+const SOFT_SHADOWS_DEPTH = ` Shadows are soft-edged, the kind a large window casts: edges fade gradually rather than cutting sharply, they are free to deepen well into shadow while keeping their detail, and the light is strongest near the opening and weaker away from it, so the room is read by that gradient rather than by even illumination.`;
+
+// Applied to whichever lighting sentence the mode and fixture switch selected,
+// so the ON/OFF table stays single-sourced. Two spellings of the white-balance
+// sentence exist (comma in the OFF table, colon in the ON table) and both have
+// to be listed; a replace that silently matches nothing would ship the old look
+// under the new label.
+const INT_MOOD_SWAPS = [
+  [`Neutral white balance throughout, white surfaces read as pure white with no colour cast, and every surface keeps its own lightness. Bright, clear and even.`,
+   `White balance is neutral to gently warm. Pale surfaces are not pure paper white: they carry the quiet mineral tone of the plaster or paint they are made of, and every surface keeps its own lightness.`],
+  [`Neutral white balance throughout: white surfaces read as pure white with no colour cast, and every surface keeps its own lightness.`,
+   `White balance is neutral to gently warm. Pale surfaces are not pure paper white: they carry the quiet mineral tone of the plaster or paint they are made of, and every surface keeps its own lightness.`],
+  [`the room is lit entirely by abundant soft daylight through the glazing.`,
+   `the room is lit by daylight arriving through its own glazing, one soft directional source rather than a general brightness, so the room is modelled by that light.`]
+];
+
+// The blown-window half of the same problem: "plain bright sky" was being taken
+// literally and the glazing came back as a flat 255 void. Clipped highlights
+// across the whole frame fell 9.06% -> 2.46% on this sentence alone.
+const SKY_VOID_BRIGHT = `Where the source shows nothing but blank white beyond the glass, that stays plain bright sky and no scene is composed to fill it.`;
+const SKY_VOID_DEPTH  = `Where the source shows nothing but blank white beyond the glass, the glazing reads as bright daylight held just within the exposure, still luminous but not burnt to a flat white void, and no scene is composed to fill it.`;
+
 // Two failures this fixes, both seen in testing:
 // 1. A turntable's clear acrylic dust cover was read as a window and the model
 //    invented a shaft of light blazing off it onto the wall.
@@ -755,9 +805,10 @@ const INT_VIEW_EXPOSURE = {
   night: `dark but still readable, showing only the light that setting really has at night — lit windows, street lamps or moonlight on foliage — never a flat black void`
 };
 
-function intViewOutsideParagraph(bg, mode){
+function intViewOutsideParagraph(bg, mode, depth){
   const content = INT_VIEW_CONTENT[bg];
-  if(!content) return INT_VIEW_KEEP; // auto, or an unknown value
+  const keep = depth ? INT_VIEW_KEEP.replace(SKY_VOID_BRIGHT, SKY_VOID_DEPTH) : INT_VIEW_KEEP;
+  if(!content) return keep; // auto, or an unknown value
   const band = mode === 'night' ? 'night' : (mode === 'evening' ? 'evening' : 'day');
   return ` Where the source image already shows glazing with something visible through it, what is seen through that glazing reads as ${content}, ${INT_VIEW_EXPOSURE[band]}.` + INT_VIEW_GUARD;
 }
@@ -806,17 +857,21 @@ const INT_LIGHT_OFF = {
   night: `Lighting: night. The only light is faint ambient night light entering through the glazing, distant city or garden light and a trace of moonlight, so the room reads as a dim, cool, quiet space. Forms stay readable in the low light with soft gradation rather than solid black.` + FIXTURES_OFF
 };
 
-function intLightingParagraph(mode, fixtures, bg, closeup){
+function intLightingParagraph(mode, fixtures, bg, closeup, mood){
   const m = INT_LIGHT_ON[mode] ? mode : 'white';
-  const base = (fixtures === 'off' ? INT_LIGHT_OFF : INT_LIGHT_ON)[m];
+  const depth = mood === 'depth';
+  let base = (fixtures === 'off' ? INT_LIGHT_OFF : INT_LIGHT_ON)[m];
+  if(depth) for(const [from, to] of INT_MOOD_SWAPS) base = base.replace(from, to);
   // Only the two modes that describe a lit room take the glow, the high-key
   // exposure and the soft-shadow clause. Evening and night are meant to be
   // dark, and a bright-and-welcoming sentence would fight their own opening
   // line — the kind of self-contradiction that broke the old v5 core.
-  const litRoom = (m === 'white' || m === 'warm') ? (INT_GLOW + INT_HIGH_KEY + SOFT_SHADOWS) : '';
+  const litRoom = (m === 'white' || m === 'warm')
+    ? (depth ? (INT_GLOW_DEPTH + SOFT_SHADOWS_DEPTH) : (INT_GLOW + INT_HIGH_KEY + SOFT_SHADOWS))
+    : '';
   // A close-up frame often contains no glazing at all, so asking for a view
   // through it invites one to be drawn.
-  return base + litRoom + NO_PHANTOM_SOURCE + (closeup ? '' : intViewOutsideParagraph(bg, m));
+  return base + litRoom + NO_PHANTOM_SOURCE + (closeup ? '' : intViewOutsideParagraph(bg, m, depth));
 }
 
 function intFocusParagraph(focus, closeup){
@@ -849,6 +904,7 @@ function buildInteriorPromptP(p = {}){
   const fixtures = p.intFixtures || 'on';
   const bg = p.intBg || 'auto';
   const closeup = (p.intShot || 'room') === 'closeup';
+  const mood = p.intMood || 'depth';
   const focus = p.intFocus || 'deep';
   const people = p.intPeople || 'no';
   const extra = String(p.intExtra || '').trim();
@@ -859,7 +915,7 @@ function buildInteriorPromptP(p = {}){
 
   const parts = [
     core,
-    intLightingParagraph(mode, fixtures, bg, closeup),
+    intLightingParagraph(mode, fixtures, bg, closeup, mood),
     intPeopleParagraph(people, closeup),
     intFocusParagraph(focus, closeup)
   ].filter(Boolean);
@@ -958,7 +1014,7 @@ function buildInteriorPrompt(){
   const typed = $('sIntExtra').value.trim();
   return buildInteriorPromptP({
     intLight: $('sIntLight').value, intShot: $('sIntShot').value,
-    intFixtures: $('sIntFixtures').value, intBg: $('sIntBg').value,
+    intFixtures: $('sIntFixtures').value, intBg: $('sIntBg').value, intMood: $('sIntMood').value,
     intFocus: $('sIntFocus').value, intPeople: $('sIntPeople').value,
     intExtra: [auto, typed].filter(Boolean).join(' ')
   });
@@ -1118,7 +1174,7 @@ function updateIntFocusAvailability(){
     if(field) field.style.opacity = closeup ? '0.45' : '';
   });
 }
-['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntFocus','sIntPeople','sIntExtra','sAutoMat'].forEach(id=>{
+['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntMood','sIntFocus','sIntPeople','sIntExtra','sAutoMat'].forEach(id=>{
   $(id).addEventListener('input', ()=>{
     updateIntFocusAvailability();
     if($('sPromptType').value === 'interior') hiddenPromptCache = buildInteriorPrompt();
