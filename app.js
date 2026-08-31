@@ -517,31 +517,33 @@ function extDiffuseTimeParagraph(time){
 }
 
 function extTimeParagraph(time){
+  // Rewritten 2026-09-01 from a VisuaLab reference sheet peetz sent, six
+  // states: Original, Predawn, Golden Hour, Midday, Blue Hour, Night Scene.
+  // The option VALUES are left alone so nothing saved breaks; only the labels
+  // and the text change.
+  //
+  // NOTE this reverses an earlier deliberate decision. `sunset` used to be
+  // defined by the sun's ANGLE and explicitly forbidden from warming, because
+  // peetz rejected orange results in July. The reference asks for a real golden
+  // hour, so it is golden again — and `noon` is the neutral option for anyone
+  // who wants what the old sunset was giving. If orange comes back as a
+  // complaint, this is the paragraph that did it.
   const map = {
-    dawn: `Time of Day — Dawn: low sun near the horizon casting long soft-edged shadows, the light clear and only faintly warm rather than golden, with a cool tint in the shade and shadow detail kept visible. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
-    noon: `Time of Day — Midday: bright clear daylight from a high sun, well-defined but soft-edged shadows that keep visible detail. The daylight is neutral and very slightly cool, exactly as a camera set to daylight white balance records it. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
-
-    // Sunset here is defined by the sun's ANGLE, not its colour. Said any
-    // other way the model reaches for golden hour, which is the cast this
-    // whole section exists to remove — and it is the tested default now, so
-    // that risk is exactly what must not come back.
-    sunset: `Time of Day — Sunset: the sun has moved past its highest point but is still well up in the sky, throwing clearly directional shadows of moderate length rather than the long rakes of twilight. The light stays bright and clear and its colour is the same neutral daylight as midday — this reads as late day by the angle of the sun, not by any warming of the light, so nothing in the frame turns golden. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
-    // Rewritten 2026-08-08 from a reference photo peetz sent: a deep blue sky
-    // sinking into a warm orange-and-pink band at the horizon, first stars
-    // showing in the blue above. The old text (reused from the pre-rename
-    // "evening" key, see the git history) only described light falling on the
-    // building and said nothing about the sky itself, which is the entire
-    // subject of that reference. The building must stay readable though — a
-    // real estate/archviz shot cannot go full silhouette the way a landscape
-    // photo can, so that constraint is stated explicitly.
-    twilight: `Time of Day — Twilight: the sun has just gone down and the sky itself carries the colour — a deep blue at the top of the frame sinking through dusk into a warm glowing band of orange and pink low on the horizon where the sun went down, with the first faint stars visible in the blue above. The building is lit by the last of that sky light plus its own switched-on lights, which glow warm and cast soft pools near the facade — forms stay readable, never falling into full silhouette. No lens flare, god rays, or HDR grading.`,
-    // "moonlight" named a moon into being — the usual failure — so this no
-    // longer says where the ambient night fill comes from, only that it
-    // exists. Fixed 2026-08-08 after peetz asked for a moonless night.
-    night: `Time of Day — Night: the scene is lit by the building's own interior and exterior lights, glowing warm and casting realistic pools of light, with a faint cool ambient glow keeping unlit areas readable rather than pure black. Away from those pools the night stays cool and neutral, not tinted amber. No invented external light sources.`
+    // Predawn: the sky carries the light, the building barely does.
+    dawn: `Time of Day — Predawn: the sun is still below the horizon. The sky is a deep saturated blue overhead sinking to a narrow warm amber band low down where the sun is about to rise, and the city lights and street lights are still lit. The building is lit mostly by that sky, so its surfaces read cool and slightly blue, while its own interior lights glow warm through the glazing. Nothing casts a hard sun shadow. No lens flare, god rays, or HDR grading.`,
+    // Golden hour: warm and directional, and allowed to be warm.
+    sunset: `Time of Day — Golden Hour: the sun is low and warm, throwing long soft-edged shadows across the ground and raking the facade from one side. The light itself is golden and slightly orange where it lands, the shade stays cool by contrast, and the sky graduates from pale warm near the horizon to soft blue above with warm-lit cloud. Sunlit surfaces glow; shadowed ones keep their detail rather than going black. No lens flare, god rays, or HDR grading.`,
+    noon: `Time of Day — Midday: bright clear daylight from a high sun in a strong blue sky, with well-defined but soft-edged shadows falling short and close under what casts them. The daylight is neutral and very slightly cool, exactly as a camera set to daylight white balance records it, and every surface keeps its own colour. No lens flare, god rays, or HDR grading.` + NEUTRAL_WB,
+    // Blue hour: the reference is unambiguous — a strong teal sky, and the
+    // building lit from inside. That balance is the whole look.
+    twilight: `Time of Day — Blue Hour: the sun has gone and the sky is an even, saturated teal-blue, brightest low down and deepening overhead. The building is lit by its own interior and exterior lights, which glow warm against that cool sky and spill onto the ground nearby — that warm-against-blue balance is the point of this hour. Forms stay readable, never falling into full silhouette, and passing traffic leaves soft light trails. No lens flare, god rays, or HDR grading.`,
+    // "moonlight" named a moon into being — the usual failure — so this still
+    // does not say where the ambient night fill comes from, only that it exists.
+    night: `Time of Day — Night Scene: full darkness, the sky a deep near-black blue with the city glowing faintly on the horizon. The building is lit entirely by its own architectural lighting — interior light through the glazing, and exterior fittings washing walls and soffits from above and below, each throwing its own soft pool and gradient. Away from those pools the night stays cool and neutral, not tinted amber, and unlit areas keep enough ambient fill to stay readable rather than pure black. No invented external light sources.`
   };
   return map[time] || map.noon;
 }
+
 
 // The five night variants named "moon"/"moonlight" outright, and a named
 // thing appears — this is very likely why a moon disc kept showing up in
@@ -575,8 +577,14 @@ function extCloudsParagraph(clouds, time){
 }
 
 function extWeatherParagraph(weather){
-if(weather === 'rain') return `Weather — Rain: the whole scene sits under a dim, gloomy, heavily overcast light with no sunshine anywhere in it. Wet sheen and standing reflections on paved and hard surfaces, fine rain streaks through the air and light ground mist, cool and slightly desaturated throughout.`;
-  if(weather === 'snow') return `Weather — Snow: a light natural layer of snow on existing horizontal surfaces only, soft diffused light, low contrast, pale cool grading. Geometry unchanged.`;
+  // Overcast moved here from the Clouds control on 2026-09-01: the reference
+  // sheet peetz sent lists it as a weather state beside rain and snow, which is
+  // how people actually think about it. The Clouds control still has its own
+  // overcast option and either route reaches the same closed-sky paragraph.
+  if(weather === 'overcast') return `Weather — Overcast: a heavy, unbroken grey cloud layer fills the sky from edge to edge, close and low, with texture and movement in it rather than a flat grey wash. No sun reaches the scene, so nothing casts a directed shadow; the light arrives evenly from the whole sky and every surface is shaded only where forms meet. Contrast is low and colours sit slightly desaturated and cool, the way an overcast day actually records.`;
+  if(weather === 'mist') return `Weather — Morning Mist: a low ground fog lies across the scene, thick enough that anything far away fades to a pale silhouette and the horizon disappears entirely, while the building itself stays clear and close. The light is soft, cool and directionless with no sun anywhere in it, wet surfaces hold a faint sheen, and any lit window glows warm through the haze. Distance is read by how much the fog takes, not by contrast.`;
+  if(weather === 'rain') return `Weather — Heavy Rain: the scene sits under a dim, gloomy, heavily overcast light with no sunshine anywhere in it. Rain falls hard enough to be visible as streaks through the air, paved and hard surfaces are wet with standing water and mirror-like reflections, spray breaks off the edges of roofs and sills, and everything reads cool and slightly desaturated.`;
+  if(weather === 'snow') return `Weather — Snowing: snow is falling, visible as soft flakes through the air, and a natural layer has settled on existing horizontal surfaces only — roofs, sills, the ground, the tops of walls — while vertical faces stay clear. The light is soft and diffused with no sun, contrast is low, and the whole frame carries a pale cool grading. Geometry unchanged.`;
   return ''; // clear
 }
 
@@ -671,7 +679,7 @@ function extConsistencyReminder(){
 }
 
 function buildExteriorPromptP(p = {}){
-  const time = p.time || 'sunset';
+  const time = p.time || 'noon';   // matches the shipped HTML default
   const clouds = p.clouds || 'thin';
   const weather = p.weather || 'clear';
   const background = p.background || 'auto';
@@ -682,7 +690,7 @@ function buildExteriorPromptP(p = {}){
   const focus = p.focus || 'deep';
   const extra = String(p.extra || '').trim();
 
-  const closedSky = weather === 'rain' || clouds === 'overcast';
+  const closedSky = weather === 'rain' || weather === 'overcast' || weather === 'mist' || clouds === 'overcast';
 
   const parts = [
     EXT_INTRO,
@@ -714,7 +722,7 @@ function buildExteriorPromptP(p = {}){
 const SEMI_INTRO = `Turn this 3D render into a real photograph of the exact same semi-outdoor space — a covered terrace, pavilion, breezeway, carport, or similar roofed space open on one or more sides — shot from the exact same camera position with identical framing. Direct sun and sky may be partially filtered by the roof while open sides receive full outdoor light, following the "Time of Day", "Clouds", and "Weather" sections below. The result is a straight photograph — nothing may look like CGI, a rendering, or an illustration.`;
 
 function buildSemiOutdoorPromptP(p = {}){
-  const time = p.time || 'sunset';
+  const time = p.time || 'noon';   // matches the shipped HTML default
   const clouds = p.clouds || 'thin';
   const weather = p.weather || 'clear';
   const background = p.background || 'auto';
@@ -725,7 +733,7 @@ function buildSemiOutdoorPromptP(p = {}){
   const focus = p.focus || 'deep';
   const extra = String(p.extra || '').trim();
 
-  const closedSky = weather === 'rain' || clouds === 'overcast';
+  const closedSky = weather === 'rain' || weather === 'overcast' || weather === 'mist' || clouds === 'overcast';
 
   const parts = [
     SEMI_INTRO,

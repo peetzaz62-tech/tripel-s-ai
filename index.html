@@ -252,11 +252,11 @@
             <label class="field">
               <span>Time of Day</span>
               <select id="sExtTime">
-                <option value="dawn">Dawn</option>
-                <option value="noon">Noon</option>
-                <option value="sunset" selected>Sunset (แดดเฉียง เงายาว ไม่อมเหลือง)</option>
-                <option value="twilight">Twilight (โทนอุ่น ไฟอาคารเริ่มติด)</option>
-                <option value="night">Night (building lights on)</option>
+                <option value="dawn">Predawn — ฟ้าน้ำเงินเข้ม ขอบฟ้าอมส้ม ไฟยังติด</option>
+                <option value="sunset">Golden Hour — แดดเฉียงอุ่น เงายาว ฟ้าไล่สี</option>
+                <option value="noon" selected>Midday — แดดจัด ฟ้าน้ำเงิน เงาสั้น สีตรง</option>
+                <option value="twilight">Blue Hour — ฟ้าเขียวน้ำเงิน ไฟอาคารอุ่นตัดฟ้า</option>
+                <option value="night">Night Scene — มืดสนิท อาคารสว่างด้วยไฟตัวเอง</option>
               </select>
             </label>
             <label class="field">
@@ -277,10 +277,12 @@
                 <label class="field">
                   <span>Weather</span>
                   <select id="sExtWeather">
-                    <option value="clear" selected>Clear</option>
-                    <option value="rain">Rain</option>
-                    <option value="snow">Snow</option>
-                  </select>
+                <option value="clear" selected>Clear Sky — ฟ้าโปร่ง แดดจัด เงาคม</option>
+                <option value="overcast">Overcast — เมฆปิดทึบ ไม่มีเงา สีจืดลง</option>
+                <option value="mist">Morning Mist — หมอกลงต่ำ ของไกลจางหาย</option>
+                <option value="rain">Heavy Rain — ฝนเป็นเส้น พื้นเปียกสะท้อน</option>
+                <option value="snow">Snowing — หิมะตก จับบนผิวแนวนอน</option>
+              </select>
                 </label>
                 <label class="field">
                   <span>Background</span>
@@ -855,6 +857,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-09-01b"></script>
+<script src="app.js?v=2026-09-01c"></script>
 </body>
 </html>
