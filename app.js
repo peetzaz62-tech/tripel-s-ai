@@ -770,6 +770,22 @@ const SKY_VOID_DEPTH  = `Where the source shows nothing but blank white beyond t
 // 2. Windows came back as flat white voids.
 const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already exist in the source image. Every solid wall and panel in the source stays solid and unbroken: no new opening of any kind appears anywhere, and no existing opening changes its size, shape or position. No new lamp or glowing panel is invented, and no object, screen, glass cover or reflective surface is turned into a light source or mistaken for an opening.`;
 
+// NO_PHANTOM_SOURCE says light may only come from openings the source already
+// has; it never says how many of them light the room. On a source with real
+// glazing on two sides the render lit both, softly, and the frame came back
+// with no cast shadow anywhere — peetz spotted it on 2026-08-31. Naming a
+// single dominant opening is what brings the shadows back.
+//
+// Only the depth mood takes it. The bright mood's SOFT_SHADOWS asks for light
+// that "lands evenly ... rather than in bright hard-edged patches", which is
+// the opposite instruction, and evening/night are lit by their own fittings
+// rather than by an opening at all — the same gate litRoom already uses.
+//
+// Measured on three rooms: the aggregate brightness statistics move 1.397 ->
+// 1.392, i.e. not at all. Direction is invisible to them. Judge this one by
+// eye — cast shadows and sunlight patches appear where there were none.
+const ONE_LIGHT_DIRECTION = ` All the light in the room arrives from one dominant direction — the largest and brightest opening the source already has. Every shadow in the frame falls the same way from that single source, and no second light of comparable strength arrives from another side.`;
+
 // Auto no longer asks for an exterior to be composed. Telling the model there
 // is "a genuine exterior appropriate to the setting" beyond the glass made it
 // invent landscapes and skylines that were never in the source — the fix for
@@ -867,7 +883,7 @@ function intLightingParagraph(mode, fixtures, bg, closeup, mood){
   // dark, and a bright-and-welcoming sentence would fight their own opening
   // line — the kind of self-contradiction that broke the old v5 core.
   const litRoom = (m === 'white' || m === 'warm')
-    ? (depth ? (INT_GLOW_DEPTH + SOFT_SHADOWS_DEPTH) : (INT_GLOW + INT_HIGH_KEY + SOFT_SHADOWS))
+    ? (depth ? (INT_GLOW_DEPTH + SOFT_SHADOWS_DEPTH + ONE_LIGHT_DIRECTION) : (INT_GLOW + INT_HIGH_KEY + SOFT_SHADOWS))
     : '';
   // A close-up frame often contains no glazing at all, so asking for a view
   // through it invites one to be drawn.
