@@ -314,6 +314,42 @@ function buildKleinPrompt(opts){
 const KLEIN_STEPS = 4;
 const SAVE_IMAGE_NODE_ID_KLEIN = "18";
 
+// Sketch to Add on Klein.
+//
+// The scope control does not apply here. Klein starts from an empty latent, so
+// SetLatentNoiseMask has nothing to hold, and the site's own "masked" option is
+// described in the UI as "เชื่อถือได้ ไม่มีเงา" — reliable, and no shadow. That
+// missing shadow is the reason peetz moved this mode over: a mask is a hard
+// boundary on where anything may change, shadows included, and commit 24af4bb
+// had already had to extend the mask downward to give one somewhere to land.
+//
+// Measured on the painted tree frame, difference from the source outside the
+// drawn shape, split into vertical bands:
+//
+//                     far left   middle   right (tree & its shadow)
+//   flux2 masked          3.08     2.55         2.66
+//   Klein                18.65    31.12        53.99
+//
+// flux2's flat 2.79 is not all preservation — part of it is declining to cast
+// the shadow at all. Klein's right-hand figure is the tree behaving physically.
+// The cost is honest and known: Klein re-renders the whole frame, so scenery
+// drifts. That is the same trade the existing "full" scope already makes and
+// that peetz already accepted on 2026-08-20 (road 14.17, far houses 13.52) —
+// Klein's floor is a little higher, and it does not leave painted colour behind.
+//
+// Resolution matters more than expected: at the frame's native size the tree
+// came out too large and shifted off the drawn shape, while 2.5MP placed it
+// correctly. So render at 2.5MP and scale back to the size the mode promises.
+function buildKleinSketchPrompt(opts){
+  const g = buildKleinPrompt(Object.assign({}, opts, { scaleTo:null, megapixels:2.5 }));
+  if(opts.scaleTo){
+    g["19"] = { class_type:"ImageScale", inputs:{ upscale_method:"lanczos",
+      width: opts.scaleTo[0], height: opts.scaleTo[1], crop:"disabled", image:["17",0] } };
+    g["18"].inputs.images = ["19",0];
+  }
+  return g;
+}
+
 // Same shape as the Upscale engine switch: klein9b is a third model family, so
 // freeIfModelSwitch has to be told about it or the 12GB card keeps a stale
 // flux2 resident and the Klein load spills to system RAM.
@@ -1608,6 +1644,38 @@ const SK_WHAT = {
 };
 const SK_EMITTING = { lamp:1, hidden:1 };
 
+// peetz on 2026-09-01: the tree reads matte, with no sheen or reflection. The
+// sketch prompt never asked for any — SK_DAYLIT covers light direction and a
+// ground shadow and stops there, while the exterior prompt has carried
+// "micro-texture, sheen and reflectivity" all along. This is that vocabulary
+// finally reaching this mode.
+//
+// A longer version naming waxy leaf surfaces and specular highlights performed
+// no better and is not used. Neither shows up in the numbers — highlight share
+// sat at 3.00% for all three variants and leaf contrast moved 47.90 -> 48.48 —
+// but the sun glints are plain in the image. Judge this one by eye.
+//
+// Bark is not foliage, so trunk and fgtrunk are left out.
+// peetz asked for small, fine, realistic leaves on 2026-09-01. Klein's default
+// canopy is a broad palmate schefflera type. Two abstract wordings failed —
+// "many small individual leaves, each only a few centimetres across" and "fine
+// and airy, daylight showing through the gaps" both came back with the same
+// broad leaves, which is what four rewordings did on Klein 4B too.
+//
+// NAMING A SPECIES works, in one shot: pinnate leaflets, the rain-tree canopy
+// peetz was after. This is [[sss-never-name-a-thing]] used deliberately for
+// once — the naming effect is the mechanism here, not the bug.
+//
+// Numbers cannot see it. Leaf grain reads 16.94 against a 16.90 baseline while
+// the picture is unmistakably a different tree. Do not re-tune this by metric.
+//
+// It is a default, not a lock: the per-type description field appends after
+// this and overrides it for a project that wants something else.
+const SK_FINE_LEAF = ` It is a fine-leaved tropical species with small pinnate leaflets — like a rain tree or tamarind — never a broad-leaved plant with large paddle-shaped leaves.`;
+
+const SK_LEAF_GLOSS = ` The foliage is glossy and slightly reflective, with sunlight glinting off individual leaf surfaces and a clear difference between the sunlit leaves and the shaded ones inside the canopy.`;
+const SK_FOLIAGE = { tree:1, canopy:1, fgleaf:1 };
+
 function buildSketchPromptP(p = {}){
   const type = SK_WHAT[p.type] ? p.type : 'tree';
   const count = Math.max(1, Math.round(Number(p.count) || 1));
@@ -1617,7 +1685,7 @@ function buildSketchPromptP(p = {}){
   const desc = String(p.desc || '').trim();
   // Free text is appended rather than spliced in, so the wording that was
   // actually rendered stays byte-for-byte intact.
-  const parts = [SK_BASE + ' ' + SK_WHAT[type](count, p) + tail];
+  const parts = [SK_BASE + ' ' + SK_WHAT[type](count, p) + tail + (SK_FOLIAGE[type] ? SK_FINE_LEAF + SK_LEAF_GLOSS : '')];
   if(desc) parts.push(`Additional Instructions:\n${desc}`);
   return parts.join('\n\n');
 }
@@ -2401,7 +2469,8 @@ async function runSketchPasses(){
       break;
     }
 
-    const img = await submitAndWait(buildSSSPrompt(Object.assign({}, common, {
+    const kleinSk = renderEngine() === 'klein9b';
+    const skOpts = Object.assign({}, common, {
       imageName: inputName,
       maskImage: maskName,
       // A mask has nothing to protect unless the sampler starts from the
@@ -2411,7 +2480,10 @@ async function runSketchPasses(){
       // in two unrelated masks.
       seed: seed + i,
       prompt: buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type], grounded: p.grounded })
-    })), SAVE_IMAGE_NODE_ID_SSS);
+    });
+    const img = kleinSk
+      ? await submitAndWait(buildKleinSketchPrompt(skOpts), SAVE_IMAGE_NODE_ID_KLEIN)
+      : await submitAndWait(buildSSSPrompt(skOpts), SAVE_IMAGE_NODE_ID_SSS);
 
     if(!img){ log('หยุดที่รอบ ' + (i+1) + ' — ผลของรอบก่อนหน้ายังใช้ได้', 'err'); break; }
     last = img;
