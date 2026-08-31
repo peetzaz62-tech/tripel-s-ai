@@ -437,11 +437,18 @@
           <summary>Render settings<span class="og-sign"></span></summary>
           <div class="og-body">
             <label class="field">
+              <span>เครื่องยนต์</span>
+              <select id="sEngine">
+                <option value="klein9b" selected>เร็ว · Klein 9B (33 วิ · สีตรงกว่า · ในห้องดีที่สุด)</option>
+                <option value="flux2">แม่นรูปทรง · FLUX.2 (3 นาที · ผังบริเวณ งานเรขาคณิตซับซ้อน)</option>
+              </select>
+            </label>
+            <label class="field">
               <span>Prompt (visible only in Custom mode)</span>
               <textarea id="sPrompt" readonly style="min-height:90px;"></textarea>
             </label>
             <div class="row2">
-              <label class="field">
+              <label class="field" id="sTurboField">
                 <span>Mode</span>
                 <select id="sTurbo">
                   <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
@@ -449,7 +456,7 @@
                   <option value="quality" selected>Quality — 20 steps (คมสุด วัสดุตรงสุด)</option>
                 </select>
               </label>
-              <label class="field">
+              <label class="field" id="sGuidanceField">
                 <span>Guidance</span>
                 <input type="number" id="sGuidance" value="4" step="0.5" min="0" max="20">
               </label>
@@ -459,7 +466,7 @@
                 <span>Output resolution (MP)</span>
                 <input type="number" id="sMegapixels" value="1" step="0.5" min="0.5" max="8">
               </label>
-              <label class="field">
+              <label class="field" id="sDenoiseField">
                 <span>ยึดต้นฉบับ — Denoise</span>
                 <input type="number" id="sDenoise" value="1" step="0.05" min="0.3" max="1">
                 <span class="fieldhint">1 = สวยที่สุด ใช้ค่านี้ (สีวัสดุคุมด้วยตัวอ่านสีอัตโนมัติแทน) · ลดลงถ้าอยากยึดต้นฉบับมากขึ้น แลกกับความเป็นภาพถ่าย<br>Turbo มีผลจริงแค่ 3 ช่วง — ≤0.80 · 0.85–0.93 · ≥0.95 (เท่ากับ 1)</span>
@@ -848,6 +855,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-08-31a"></script>
+<script src="app.js?v=2026-09-01a"></script>
 </body>
 </html>

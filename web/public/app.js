@@ -265,6 +265,72 @@ function buildSSSPrompt(opts){
 }
 const SAVE_IMAGE_NODE_ID_SSS = "9";
 
+// Skp to Render on Flux.2 Klein 9B distilled.
+//
+// Measured against the 18 real Before/After pairs on 2026-08-31: 5.5x faster
+// than flux2-dev (33s against 181s at 2.5MP), 36% less colour drift, and it
+// does NOT invent the light panel on a blank wall that nothing could stop on
+// flux2 — see the notes on that failure in the interior lighting section.
+// It holds geometry less tightly than flux2 (0.185 against 0.335), which is the
+// price, and it is weakest on aerial masterplans and on sources whose sky is
+// blank grey.
+//
+// Shape follows image_flux2_klein_image_edit_9b_distilled exactly: 4 steps, a
+// CFGGuider pinned to cfg 1 against a zeroed negative, and the source arriving
+// as conditioning through ReferenceLatent. Three consequences worth knowing:
+//
+//   - There is no FluxGuidance node. Klein is guidance-distilled, so the
+//     Guidance control has nothing to act on and is hidden for this engine.
+//   - Steps swept 4/8/12/20 on three frames: brightness flat, deep shadow gets
+//     WORSE (0.98 -> 0.49), time 3.7x. 4 is not a floor to raise, it is right.
+//   - The sampler starts from an empty latent, so there is no img2img branch
+//     and no mask to hang on it. Sketch to Add and Add People stay on flux2 for
+//     that reason and because flux2 measurably draws the better tree.
+function buildKleinPrompt(opts){
+  const g = {
+    "1":  { class_type:"LoadImage", inputs:{ image: opts.imageName } },
+    "2":  opts.scaleTo
+      ? { class_type:"ImageScale", inputs:{ upscale_method:"lanczos", width: opts.scaleTo[0], height: opts.scaleTo[1], crop:"disabled", image:["1",0] } }
+      : { class_type:"ImageScaleToTotalPixels", inputs:{ upscale_method:"lanczos", megapixels: opts.megapixels, resolution_steps:1, image:["1",0] } },
+    "3":  { class_type:"UNETLoader", inputs:{ unet_name:"flux-2-klein-9b-fp8.safetensors", weight_dtype:"default" } },
+    "4":  { class_type:"CLIPLoader", inputs:{ clip_name:"qwen_3_8b_fp8mixed.safetensors", type:"flux2", device:"default" } },
+    "5":  { class_type:"VAELoader", inputs:{ vae_name:"full_encoder_small_decoder.safetensors" } },
+    "6":  { class_type:"CLIPTextEncode", inputs:{ text: opts.prompt, clip:["4",0] } },
+    "7":  { class_type:"ConditioningZeroOut", inputs:{ conditioning:["6",0] } },
+    "8":  { class_type:"VAEEncode", inputs:{ pixels:["2",0], vae:["5",0] } },
+    "9b": { class_type:"ReferenceLatent", inputs:{ conditioning:["6",0], latent:["8",0] } },
+    "10": { class_type:"GetImageSize", inputs:{ image:["2",0] } },
+    "11": { class_type:"EmptyFlux2LatentImage", inputs:{ width:["10",0], height:["10",1], batch_size:1 } },
+    "12": { class_type:"Flux2Scheduler", inputs:{ steps: KLEIN_STEPS, width:["10",0], height:["10",1] } },
+    "13": { class_type:"RandomNoise", inputs:{ noise_seed: opts.seed } },
+    "14": { class_type:"KSamplerSelect", inputs:{ sampler_name:"euler" } },
+    "15": { class_type:"CFGGuider", inputs:{ model:["3",0], positive:["9b",0], negative:["7",0], cfg:1 } },
+    "16": { class_type:"SamplerCustomAdvanced", inputs:{ noise:["13",0], guider:["15",0], sampler:["14",0], sigmas:["12",0], latent_image:["11",0] } },
+    "17": { class_type:"VAEDecode", inputs:{ samples:["16",0], vae:["5",0] } },
+    "18": { class_type:"SaveImage", inputs:{ images:["17",0], filename_prefix:"SSS" } }
+  };
+  return g;
+}
+const KLEIN_STEPS = 4;
+const SAVE_IMAGE_NODE_ID_KLEIN = "18";
+
+// Same shape as the Upscale engine switch: klein9b is a third model family, so
+// freeIfModelSwitch has to be told about it or the 12GB card keeps a stale
+// flux2 resident and the Klein load spills to system RAM.
+function renderEngine(){
+  const el = $('sEngine');
+  return (el && el.value === 'flux2') ? 'flux2' : 'klein9b';
+}
+function buildRenderPrompt(opts){
+  return renderEngine() === 'klein9b' ? buildKleinPrompt(opts) : buildSSSPrompt(opts);
+}
+function renderSaveNodeId(){
+  return renderEngine() === 'klein9b' ? SAVE_IMAGE_NODE_ID_KLEIN : SAVE_IMAGE_NODE_ID_SSS;
+}
+function renderModelKind(){
+  return renderEngine() === 'klein9b' ? 'klein9b' : 'flux2';
+}
+
 // ---------------------------------------------------------------------------
 let state = { workflow:"magnific", uploadedName:null, origPreviewURL:null, connected:false, clientId: crypto.randomUUID(), autoMaterials:"", lastResult:null, lastModelKind:null };
 
@@ -2467,6 +2533,21 @@ function applyUpscaleEngine(){
 }
 if($('pEngine')) $('pEngine').addEventListener('change', applyUpscaleEngine);
 applyUpscaleEngine();
+
+// Klein is guidance-distilled and starts from an empty latent, so Guidance,
+// Quality/steps and Denoise have nothing to act on. Hiding them beats leaving
+// controls on screen that silently do nothing.
+function applyRenderEngine(){
+  const klein = renderEngine() === 'klein9b';
+  for(const id of ['sGuidanceField','sTurboField','sDenoiseField']){
+    const el = $(id);
+    if(el) el.style.display = klein ? 'none' : '';
+  }
+  const mp = $('sMegapixels');
+  if(mp && klein && parseFloat(mp.value) < 2.5) mp.value = '2.5';
+}
+if($('sEngine')) $('sEngine').addEventListener('change', applyRenderEngine);
+applyRenderEngine();
 $('btnRandSeedSSS').addEventListener('click', ()=>{
   $('sSeed').value = Math.floor(Math.random()*1_000_000_000);
 });
@@ -2553,8 +2634,8 @@ async function runWorkflow(){
       denoise: parseFloat($('sDenoise').value),
       seed: parseInt($('sSeed').value)
     };
-    prompt = buildSSSPrompt(opts);
-    saveImageNodeId = SAVE_IMAGE_NODE_ID_SSS;
+    prompt = buildRenderPrompt(opts);
+    saveImageNodeId = renderSaveNodeId();
   }else if(state.workflow === 'people'){
     // Same graph as Sketchup-to-Render. The mode differs only in the text it
     // sends: see buildAddPeoplePromptP for why a shorter prompt is the whole
@@ -2584,7 +2665,10 @@ async function runWorkflow(){
     saveImageNodeId = upscaleSaveNodeId();
   }
 
-  await freeIfModelSwitch(state.workflow === 'magnific' ? upscaleModelKind() : 'flux2');
+  await freeIfModelSwitch(
+    state.workflow === 'magnific' ? upscaleModelKind()
+    : state.workflow === 'sss'    ? renderModelKind()
+    : 'flux2');
 
   const img = await submitAndWait(prompt, saveImageNodeId);
   if(img) showRunResult(img);
