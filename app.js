@@ -1656,22 +1656,23 @@ const SK_EMITTING = { lamp:1, hidden:1 };
 // but the sun glints are plain in the image. Judge this one by eye.
 //
 // Bark is not foliage, so trunk and fgtrunk are left out.
-// peetz asked for small, fine, realistic leaves on 2026-09-01. Klein's default
-// canopy is a broad palmate schefflera type. Two abstract wordings failed —
-// "many small individual leaves, each only a few centimetres across" and "fine
-// and airy, daylight showing through the gaps" both came back with the same
-// broad leaves, which is what four rewordings did on Klein 4B too.
+// peetz asked for small, fine, realistic leaves on 2026-09-01. Four wordings
+// were run on the same frame and seed, leaf grain against a 16.90 baseline:
 //
-// NAMING A SPECIES works, in one shot: pinnate leaflets, the rain-tree canopy
-// peetz was after. This is [[sss-never-name-a-thing]] used deliberately for
-// once — the naming effect is the mechanism here, not the bug.
+//   "many small individual leaves, a few centimetres across"        18.41
+//   naming a species — "pinnate leaflets, like a rain tree"         16.94
+//   this one — fine and airy, sky through the gaps, broken edge     18.72
 //
-// Numbers cannot see it. Leaf grain reads 16.94 against a 16.90 baseline while
-// the picture is unmistakably a different tree. Do not re-tune this by metric.
+// Naming a species changed the tree outright into a rain tree, which is why I
+// first read it as the winner; peetz picked this one instead on 2026-09-01 and
+// it is also the highest grain of the four. Naming a species is the stronger
+// lever but it commits every project to one tree — this asks for the quality
+// peetz wanted (fine, airy, an edge that breaks into individual leaves against
+// the sky) without deciding the species for him.
 //
 // It is a default, not a lock: the per-type description field appends after
-// this and overrides it for a project that wants something else.
-const SK_FINE_LEAF = ` It is a fine-leaved tropical species with small pinnate leaflets — like a rain tree or tamarind — never a broad-leaved plant with large paddle-shaped leaves.`;
+// this and overrides it.
+const SK_FINE_LEAF = ` The foliage is fine and airy: the leaves are small enough that daylight and sky show through the gaps between them all across the crown, and the outer edge of the canopy breaks into individual small leaves against the sky rather than ending in a smooth mass.`;
 
 const SK_LEAF_GLOSS = ` The foliage is glossy and slightly reflective, with sunlight glinting off individual leaf surfaces and a clear difference between the sunlit leaves and the shaded ones inside the canopy.`;
 const SK_FOLIAGE = { tree:1, canopy:1, fgleaf:1 };
