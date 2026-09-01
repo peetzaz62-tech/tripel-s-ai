@@ -968,10 +968,22 @@ const INT_VIEW_GUARD = ` This governs only what is seen through openings that al
 // lighting mode). Splitting the two fixes a contradiction in the old fixed
 // sentence, which asked for a "bright and softly overexposed" view even at night.
 const INT_VIEW_CONTENT = {
-  // For sources modelled with no backdrop at all. Names sky explicitly so the
-  // blank window has something definite to be, without opening the door to
-  // invented scenery the way a named landscape does.
-  sky: `plain open sky with a soft natural gradient and gentle haze, carrying no building, tree, landscape or horizon detail of any kind`,
+  // There is deliberately no "sky only" option here.
+  //
+  // One existed and did not work: "plain open sky with a soft natural gradient"
+  // describes exactly what an unexposed white window already looks like, so the
+  // render had nothing to do, and most of the sentence went on forbidding
+  // buildings and trees — which is how you summon them. Rewritten positively on
+  // 2026-09-02 (a colour, a direction to that colour, an edge-to-edge extent) it
+  // worked outright: on a café modelled with no exterior, near-white pixels fell
+  // from 25.7% to 3.9% and the window carried a real graded blue.
+  //
+  // peetz turned it down on sight, and he is right. Sky filling a shopfront down
+  // to floor level means the room is airborne — true of nothing he draws except
+  // a high-floor view, which the city option already covers from the right
+  // height. A view that cannot exist is worse than a blank window, so the option
+  // is gone rather than fixed. Keep this note: the wording works, the idea does
+  // not, and the next person to notice blank windows should not re-derive it.
   garden: `a real garden, planting and shrubs with a tree or two near the glass and soft depth behind them`,
   forest: `real woodland close to the glass, trunks and layered foliage receding into soft depth`,
   street: `a real street at ground level, road surface and kerb, street trees and the fronts of the buildings opposite`,
@@ -989,7 +1001,15 @@ function intViewOutsideParagraph(bg, mode, depth){
   const keep = depth ? INT_VIEW_KEEP.replace(SKY_VOID_BRIGHT, SKY_VOID_DEPTH) : INT_VIEW_KEEP;
   if(!content) return keep; // auto, or an unknown value
   const band = mode === 'night' ? 'night' : (mode === 'evening' ? 'evening' : 'day');
-  return ` Where the source image already shows glazing with something visible through it, what is seen through that glazing reads as ${content}, ${INT_VIEW_EXPOSURE[band]}.` + INT_VIEW_GUARD;
+  // The condition used to read "glazing with something visible through it",
+  // which quietly excluded the exact case the Sky option exists for: a window
+  // modelled with no backdrop has nothing visible through it, so the clause
+  // never applied and the blank stayed blank. The condition that keeps the
+  // model from cutting new holes in walls is that the OPENING already exists —
+  // INT_VIEW_GUARD says so directly — not that something is already behind it.
+  return ` Where the source image already shows glazing, what is seen through that glazing reads as ${content}, ${INT_VIEW_EXPOSURE[band]}.`
+    + ` This covers every opening the source already has, the ones it leaves blank included: those carry the same view as the rest.`
+    + INT_VIEW_GUARD;
 }
 
 // Lighting is two independent questions and used to be folded into one control:
