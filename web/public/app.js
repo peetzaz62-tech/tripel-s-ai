@@ -603,8 +603,45 @@ function extTimeParagraph(time){
 // night renders nobody asked for. Fixed 2026-08-08: every ambient-glow phrase
 // stays, only the moon itself is gone. Stars are untouched — peetz asked for
 // no moon, not no stars.
-function extCloudsParagraph(clouds, time){
+// How blue the sky actually comes back, and why the Clouds control cannot
+// decide it.
+//
+// peetz's hypothesis on 2026-09-02 was that setting Clouds to None would deepen
+// the blue. Measured on one exterior source at seed 4242, noon and clear, with
+// nothing else changed, mean B−R across the top band of the frame:
+//
+//   none   +59.6   the palest of the three
+//   thin   +61.4   the shipped default
+//   thick  +65.2
+//
+// The opposite of the guess, and a span of about 9% — the control is not the
+// lever. More cloud reads bluer because the white of the cloud makes the blue
+// beside it read deeper, and None's own words, "a natural daylight gradient",
+// describe a pale wash.
+//
+// The benchmarks say the shipped default was simply too pale. R9m_urban_00001_,
+// the render peetz calls the best he has made for light, sky, shadow, materials
+// and reflection, measures +83.6; his ten delivered exterior Afters that contain
+// sky have a median of +86.3. The site was shipping +61.4.
+//
+// Naming the colour is what closes that gap — the same lever that makes a tree
+// appear when the species is named, and that fixed the interior view. With this
+// clause: thin +82.7, none +85.4, both landing on R9m_urban and on the delivered
+// median, saturation 29.2% -> 43.3%.
+//
+// It is gated three ways, because a deep blue is a claim about the sky and there
+// are skies it would contradict: not at night, not under a closed sky (rain,
+// overcast, mist, or the overcast cloud option), and only at the times of day
+// whose sky really is blue. Golden Hour and Blue Hour own their colour and are
+// left to it.
+const SKY_DEEP_BLUE = ` The sky's blue is deep and strongly saturated overhead, paling only close to the horizon.`;
+const SKY_BLUE_TIMES = { noon:1 };
+const SKY_BLUE_CLOUDS = { none:1, thin:1, thick:1 };
+
+function extCloudsParagraph(clouds, time, closedSky){
   const night = time === 'night';
+  const deep = !night && !closedSky && SKY_BLUE_TIMES[time] && SKY_BLUE_CLOUDS[clouds]
+    ? SKY_DEEP_BLUE : '';
   const map = {
     none: night
       ? `Clouds: a clear night sky with visible stars.`
@@ -626,7 +663,7 @@ function extCloudsParagraph(clouds, time){
       ? `Clouds: a heavy rain sky with the stars completely hidden, only the dim glow of distant city light on the cloud base.`
       : `Clouds: a heavy, low, rain-bearing sky — thick grey cloud with real depth and darker bellies, covering the frame from edge to edge with no break and no patch of blue anywhere. The daylight coming through it is dim and even.`
   };
-  return map[clouds] || map.thin;
+  return (map[clouds] || map.thin) + deep;
 }
 
 function extWeatherParagraph(weather){
@@ -757,7 +794,7 @@ function buildExteriorPromptP(p = {}){
     // forces the cloud layer, so 'clear cloudless sky' can never be asked for
     // in the same breath as falling rain.
     (closedSky && time !== 'night') ? extDiffuseTimeParagraph(time) : extTimeParagraph(time),
-    extCloudsParagraph(weather === 'rain' ? 'rain' : clouds, time),
+    extCloudsParagraph(weather === 'rain' ? 'rain' : clouds, time, closedSky),
     extWeatherParagraph(weather),
     extPeopleParagraph(people, peopleDesc),
     extCarsParagraph(cars),
@@ -800,7 +837,7 @@ function buildSemiOutdoorPromptP(p = {}){
     // forces the cloud layer, so 'clear cloudless sky' can never be asked for
     // in the same breath as falling rain.
     (closedSky && time !== 'night') ? extDiffuseTimeParagraph(time) : extTimeParagraph(time),
-    extCloudsParagraph(weather === 'rain' ? 'rain' : clouds, time),
+    extCloudsParagraph(weather === 'rain' ? 'rain' : clouds, time, closedSky),
     extWeatherParagraph(weather),
     extPeopleParagraph(people, peopleDesc),
     extCarsParagraph(cars),
