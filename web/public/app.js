@@ -1432,6 +1432,9 @@ window.addEventListener('load', testConnection);
 document.querySelectorAll('.wf-opt').forEach(el=>{
   el.addEventListener('click', ()=>{
     if(el.classList.contains('disabled')) return;
+    // Only an actual change resets — clicking the mode you are already in must
+    // not throw away the upload you are working on.
+    const changed = el.dataset.wf !== state.workflow;
     document.querySelectorAll('.wf-opt').forEach(o=>o.classList.remove('selected'));
     el.classList.add('selected');
     state.workflow = el.dataset.wf;
@@ -1440,6 +1443,13 @@ document.querySelectorAll('.wf-opt').forEach(el=>{
     $('paramsCardPeople').style.display = state.workflow === 'people' ? '' : 'none';
     $('paramsCardSketch').style.display = state.workflow === 'sketch' ? '' : 'none';
     skSyncMode();
+    // Every mode wants a different size and a different starting frame, and the
+    // source is not carried across — say so, or the image looks like it dropped
+    // out on its own.
+    if(changed){
+      resetSource();
+      log('เปลี่ยนโหมดแล้ว — อัปโหลดภาพใหม่สำหรับโหมดนี้');
+    }
   });
 });
 
@@ -2585,6 +2595,64 @@ async function handleFile(file){
   }catch(e){
     log('Upload error: ' + e.message, 'err');
   }
+  updateRunEnabled();
+}
+
+// Clear the source image and everything derived from it.
+//
+// Reproduced 2026-09-01: state.uploadedName is written in exactly one place —
+// handleFile — and nothing ever reassigns it, so it kept pointing at the file
+// dropped in at the start of the session no matter what ran afterwards. Skp to
+// Render survived that because its graph carries a scaleTo and downscales the
+// source to 2.5MP first. buildMagnificPrompt has no downscale node at all: it
+// wires LoadImage straight into UltimateSDUpscale.
+//
+// So rendering a 4000x2323 SketchUp export and then clicking the Upscale tab
+// fed 9.29MP into a graph the user believed was working on the 2176x1264 frame
+// on screen — and 4x-UltraSharp runs at its native x4 whatever Upscale x is set
+// to, which makes a 16000x9292 intermediate: 1.8GB for one tensor on a 12GB
+// card. That is the 10240x5760 crawl already described above buildMagnificPrompt.
+//
+// upscaleLastResult and sketchLastResult always did the right thing — they
+// re-upload the result and work on that. The mode tabs simply bypassed them,
+// so the button and the tab gave different answers from the same screen with
+// nothing visible to tell them apart. peetz's call: changing mode resets, and
+// the new mode starts from a fresh upload. Nothing stale can survive the hop.
+function resetSource(){
+  state.uploadedName  = null;
+  state.origPreviewURL = null;
+  state.lastResult    = null;
+  state.autoMaterials = '';
+
+  $('previewBox').style.display = 'none';
+  $('previewImg').removeAttribute('src');
+  // Re-picking the same file has to re-fire change, and it only does that if
+  // the input no longer holds it.
+  $('fileInput').value = '';
+
+  $('cmpEmpty').style.display = '';
+  $('cmpAfterImg').style.display = 'none';
+  $('cmpAfterImg').removeAttribute('src');
+  $('cmpBeforeWrap').style.display = 'none';
+  $('cmpLabelBefore').style.display = 'none';
+  $('cmpLabelAfter').style.display = 'none';
+  $('cmpLine').style.display = 'none';
+  $('cmpDot').style.display = 'none';
+  cmpRange.style.display = 'none';
+  $('dlLink').removeAttribute('href');
+  $('dlOrigLink').removeAttribute('href');
+  $('actionsBottom').style.display = 'none';
+
+  SK.strokes = []; SK.cur = null; SK.hover = null;
+  $('skImg').removeAttribute('src');
+  $('skImg').style.display = 'none';
+  $('skCanvas').style.display = 'none';
+  $('skEmpty').style.display = '';
+
+  // The material sentence was read off the image that just went away, and the
+  // work-size notes measure an image that is no longer there.
+  applyPromptType();
+  refreshWorkNotes();
   updateRunEnabled();
 }
 
