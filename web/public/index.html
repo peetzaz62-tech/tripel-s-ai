@@ -429,39 +429,13 @@
           <summary>Render settings<span class="og-sign"></span></summary>
           <div class="og-body">
             <label class="field">
-              <span>เครื่องยนต์</span>
-              <select id="sEngine">
-                <option value="klein9b" selected>เร็ว · Klein 9B (33 วิ · สีตรงกว่า · ในห้องดีที่สุด)</option>
-                <option value="flux2">แม่นรูปทรง · FLUX.2 (3 นาที · ผังบริเวณ งานเรขาคณิตซับซ้อน)</option>
-              </select>
-            </label>
-            <label class="field">
               <span>Prompt (visible only in Custom mode)</span>
               <textarea id="sPrompt" readonly style="min-height:90px;"></textarea>
             </label>
             <div class="row2">
-              <label class="field" id="sTurboField">
-                <span>Mode</span>
-                <select id="sTurbo">
-                  <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
-                  <option value="balanced">Balanced — 8 steps ไม่มี LoRA (วัสดุสีเข้มตรงกว่า)</option>
-                  <option value="quality" selected>Quality — 20 steps (คมสุด วัสดุตรงสุด)</option>
-                </select>
-              </label>
-              <label class="field" id="sGuidanceField">
-                <span>Guidance</span>
-                <input type="number" id="sGuidance" value="4" step="0.5" min="0" max="20">
-              </label>
-            </div>
-            <div class="row2">
               <label class="field">
                 <span>Output resolution (MP)</span>
-                <input type="number" id="sMegapixels" value="1" step="0.5" min="0.5" max="8">
-              </label>
-<label class="field" id="sDenoiseField">
-                <span>ยึดต้นฉบับ — Denoise</span>
-                <input type="number" id="sDenoise" value="1" step="0.05" min="0.3" max="1">
-                <span class="fieldhint">1 = สวยที่สุด ใช้ค่านี้ (สีวัสดุคุมด้วยตัวอ่านสีอัตโนมัติแทน) · ลดลงถ้าอยากยึดต้นฉบับมากขึ้น แลกกับความเป็นภาพถ่าย<br>Turbo มีผลจริงแค่ 3 ช่วง — ≤0.80 · 0.85–0.93 · ≥0.95 (เท่ากับ 1)</span>
+                <input type="number" id="sMegapixels" value="2.5" step="0.5" min="0.5" max="8">
               </label>
               <label class="field">
                 <span>Seed</span>
@@ -501,20 +475,6 @@
           <div class="og-body">
             <div class="row2">
               <label class="field">
-                <span>Mode</span>
-                <select id="apTurbo">
-                  <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
-                  <option value="balanced">Balanced — 8 steps ไม่มี LoRA (วัสดุสีเข้มตรงกว่า)</option>
-                  <option value="quality" selected>Quality — 20 steps (คมสุด วัสดุตรงสุด)</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Guidance</span>
-                <input type="number" id="apGuidance" value="3.5" step="0.5" min="0" max="20">
-              </label>
-            </div>
-            <div class="row2">
-              <label class="field">
                 <span>Output resolution (MP)</span>
                 <input type="number" id="apMegapixels" value="1" step="0.5" min="0.5" max="8">
               </label>
@@ -545,20 +505,6 @@
           <div class="og-body">
             <div class="row2">
               <label class="field">
-                <span>Mode</span>
-                <select id="skTurbo">
-                  <option value="turbo">Turbo — 8 steps + LoRA (เร็วสุด)</option>
-                  <option value="balanced">Balanced — 8 steps ไม่มี LoRA</option>
-                  <option value="quality" selected>Quality — 20 steps (คมสุด)</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Guidance</span>
-                <input type="number" id="skGuidance" value="3.5" step="0.5" min="0" max="20">
-              </label>
-            </div>
-            <div class="row2">
-              <label class="field">
                 <span>Output resolution (MP)</span>
                 <input type="number" id="skMegapixels" value="1" step="0.5" min="0.5" max="8">
               </label>
@@ -574,15 +520,10 @@
             <label class="field">
               <span>ขอบเขตการเจน</span>
               <select id="skScope">
-                <option value="full">ทั้งภาพ — มีเงา แต่บางครั้งสีที่วาดค้างในภาพ</option>
-                <option value="masked" selected>เฉพาะรอบรูปที่วาด — เชื่อถือได้ ไม่มีเงา (แนะนำ)</option>
+                <option value="full">ทั้งภาพ — AI วาดใหม่ทั้งเฟรม</option>
+                <option value="masked" selected>เฉพาะรอบรูปที่วาด — นอกกรอบเหมือนเดิมทุกพิกเซล (แนะนำ)</option>
               </select>
-              <span class="fieldhint"><b>เฉพาะรอบรูปที่วาด</b> — ต้นไม้ขึ้นตรงที่วาด ขนาดตามที่วาด สีที่ป้ายไม่มีทางค้างในภาพ และนอกกรอบที่วาดเหมือนเดิมทุกพิกเซล<br><b>ทั้งภาพ</b> — AI เจนใหม่ทั้งเฟรมโดยใช้รูปที่วาดเป็นแค่คำใบ้ ตำแหน่งและขนาดจะไม่ตรงที่วาด และฉากหลังอย่างถนนหรือตึกไกลๆ จะถูกวาดใหม่ · <b>สัดส่วนภาพไม่เปลี่ยน</b> ทั้งสองแบบ</span>
-            </label>
-            <label class="field" id="skDenoiseField">
-              <span>ยึดภาพเดิมแค่ไหน — denoise</span>
-              <input type="number" id="skDenoise" value="1" step="0.05" min="0.5" max="1">
-              <span class="fieldhint">ใช้เฉพาะโหมด <b>ทั้งภาพ</b> · นี่คือปุ่มที่ตัดสินว่า<b>ผลลัพธ์จะเกาะรูปที่วาดแค่ไหน</b><br><b>0.85</b> = ต้นไม้ขึ้นตรงที่วาด ขนาดตามที่วาด (แนะนำ) · <b>0.90</b> = เริ่มบานออกและเลื่อนตำแหน่ง · <b>1.00</b> = AI เลือกตำแหน่งและขนาดเอง รูปที่วาดเป็นแค่คำใบ้<br>ค่านี้ถูกปัดเป็นจำนวนสเต็ป <b>0.88 กับ 0.92 คือภาพเดียวกันเป๊ะ</b> · ถ้าเจนแล้วไม่มีอะไรเกิดขึ้น ให้เพิ่มค่านี้ทีละ 0.05</span>
+              <span class="fieldhint"><b>เฉพาะรอบรูปที่วาด</b> — ของขึ้นตรงที่วาด และทุกอย่างนอกกรอบกลับมาเหมือนเดิมเป๊ะ ไม่ว่าจะวาดกี่รอบต่อกัน · พื้นใต้รูปที่วาดเปิดไว้ให้เงาตกลงได้<br><b>ทั้งภาพ</b> — วาดใหม่หมดทั้งเฟรม รูปที่วาดเป็นแค่คำใบ้ ฉากหลังอย่างถนนหรือตึกไกลๆ จะเปลี่ยนไปด้วย และยิ่งวาดหลายรอบยิ่งเพี้ยนสะสม<br><b>ขนาดของสิ่งที่เพิ่ม AI เป็นคนกำหนด</b> ไม่ได้อิงความหนาของเส้นที่วาด — วัดแล้วเส้นใหญ่ขึ้น 5 เท่าขนาดขยับแค่ 15% · <b>สัดส่วนภาพไม่เปลี่ยน</b> ทั้งสองแบบ</span>
             </label>
             <label class="field" id="skRoomField">
               <span>เผื่อพื้นที่รอบรูปที่วาด (% ของด้านสั้น)</span>
@@ -590,12 +531,8 @@
               <span class="fieldhint">ใช้เฉพาะโหมด <b>เฉพาะรอบรูปที่วาด</b> · รูปที่วาดคือ<b>รูปร่าง</b> ค่านี้คือ<b>ที่ว่างรอบๆ</b> ให้กิ่งแตกและเงาตกลงพื้นได้<br><b>0</b> = ตันเหมือนก้อน · <b>5</b> = เป็นธรรมชาติ ฉากหลังแทบไม่ขยับ · <b>10 ขึ้นไป</b> = ใกล้โหมดทั้งภาพ</span>
             </label>
             <label class="field">
-              <span><label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;"><input type="checkbox" id="skSettle" style="width:auto;margin:0;"> เก็บเงาให้ด้วย (เจนเพิ่มอีก 1 รอบ)</label></span>
+</span>
               <span class="fieldhint">รอบที่วาดจะเก็บของให้อยู่ตรงที่วาดเป๊ะ แต่เงาตกนอกกรอบที่วาดจึงวาดไม่ได้ · เปิดไว้จะเจนต่ออีกรอบโดย<b>ไม่เพิ่มอะไรใหม่</b> ขอแค่ให้สิ่งที่ยืนอยู่ในแสงทอดเงาลงพื้น<br><b>ปิดไว้</b> เพราะเพิ่มเวลาอีกเท่าตัวและได้เงาไม่คุ้ม — เปิดเองได้ถ้าอยากลองเป็นภาพๆ ไป · รอบนี้จะปรับภาพรวมไปด้วยประมาณ 10 จาก 255 ซึ่งเป็นราคาที่ต้องจ่ายเพื่อให้พื้นถูกวาดใหม่จนใส่เงาได้ · <b>บางภาพยังไม่เกิดเงา</b> โดยเฉพาะภาพที่ต้นไม้อยู่ในกระบะแคบหรือแดดตรงหน้า</span>
-            </label>
-            <label class="field" id="skLockField">
-              <span><label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;"><input type="checkbox" id="skLock" style="width:auto;margin:0;"> ล็อกพิกเซลนอกกรอบให้เหมือนเดิม 100%</label></span>
-              <span class="fieldhint">ปิดไว้ — เพราะเงาของสิ่งที่เพิ่มมักตกออกนอกกรอบที่วาด ถ้าเปิดจะได้ภาพเดิมเป๊ะนอกกรอบ แต่เงาที่ล้นออกมาจะถูกลบไปด้วย</span>
             </label>
             <label class="field">
               <span>Prompt ของรอบแรก (read-only)</span>
@@ -847,6 +784,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-09-02c"></script>
+<script src="app.js?v=2026-09-02d"></script>
 </body>
 </html>

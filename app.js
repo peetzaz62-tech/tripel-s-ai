@@ -144,126 +144,22 @@ function upscaleModelKind(){
   return upscaleEngine() === 'seedvr2' ? 'seedvr2' : 'flux1';
 }
 
-// ---------------------------------------------------------------------------
-// API-format prompt template for "SSS · Skp to Render" — Flux.2 Dev image-edit.
-// Rebuilt directly from the API-format JSON the user provided (node ids kept
-// identical, e.g. "68:6", "68:12" ...). Dead/unused branches from the original
-// export (LoadImageListFromDir, the disconnected ImageUpscaleWithModel, and
-// the ImageCompare preview) are omitted since they don't feed the SaveImage
-// output and would otherwise fail validation (missing required inputs).
-// ---------------------------------------------------------------------------
-// Mode picks two things that used to be welded together by a pair of switch
-// nodes: whether the Turbo LoRA is in the model path, and how many steps run.
-// They were welded because the exported workflow drove both from one boolean,
-// which left the useful third combination — no LoRA, 8 steps — unreachable from
-// the UI. That combination is the one that held the ceiling detail and the
-// light direction on the kitchen source, so it gets its own option.
+// FLUX.2 Dev is gone from this file. It served Skp to Render, Add People and
+// Sketch to Add until 2026-09-02, when peetz moved every mode onto Klein 9B.
+// Three things it knew that are worth not rediscovering:
 //
-// The LoRA also lightens dark materials (it is what turned a dark grey fridge
-// stainless), so it is left out of the graph entirely unless Turbo asks for it
-// rather than loaded and switched around.
-// Denoise below 1 turns this into img2img: the sampler starts from the source's
-// own latent and runs only the tail of the schedule, so tone and colour survive
-// because they were never thrown away. Sixteen renders proved no wording can
-// make the model hold a dark deck dark — starting from the dark deck does it
-// with no sentence at all.
+//  - Its Denoise slider was a step count wearing a percentage. SplitSigmasDenoise
+//    cuts on whole steps, so on Turbo's 8 the whole slider collapsed into three
+//    bands: <=0.80 kept the render look, 0.85-0.93 became a photograph, >=0.95
+//    was identical to 1. Values inside a band were pixel-identical.
+//  - Its Turbo LoRA lightened dark materials — it is what turned a dark grey
+//    fridge stainless — so it was left out of the graph rather than switched.
+//  - Its mask worked at the latent level, which Klein's cannot: see
+//    buildKleinSketchPrompt for what replaced it.
 //
-// Granularity: SplitSigmasDenoise cuts on step boundaries, so the setting is
-// quantised to 1/steps. On Turbo's 8 steps the whole slider collapses into
-// three bands, measured pixel-by-pixel on 1111.jpg:
-//
-//   <= 0.80          two steps skipped — tone survives, still looks like a render
-//   0.85 .. 0.93     one step skipped  — tone survives and it becomes a photograph
-//   >= 0.95          nothing skipped   — identical to denoise 1, the bug is back
-//
-// Values inside a band are pixel-identical (mean abs diff 0.000). Reach for
-// Quality's 20 steps when a value between bands is needed.
-function buildSSSPrompt(opts){
-  const mode = opts.mode || 'turbo';
-  const useLora = mode === 'turbo';
-  const steps = mode === 'quality' ? 20 : 8;
-  const denoise = Number(opts.denoise);
-  const img2img = denoise > 0 && denoise < 1;
-  const g = {
-    "125": { class_type:"LoadImage", inputs:{ image: opts.imageName } },
-    // The exported workflow wires node 45 to the PreviewImage node (124), but
-    // PreviewImage is an output node with no output slot, so ComfyUI rejects the
-    // graph. Read the image straight from LoadImage and drop the preview node.
-    // ImageScaleToTotalPixels rounds each side on its own and the VAE then crops
-    // each side down to a multiple of 16, again on its own. On a 3904x2112
-    // source that came out 1968x1056 — the height lost 9 rows, the width 1
-    // column, and the frame arrived 0.82% wider in proportion than it went in,
-    // enough that the two halves of the compare slider no longer lined up.
-    // Sketch to Add hands in the size instead, both sides already multiples of
-    // 16 and picked to hold the source's own ratio, so nothing is cropped:
-    // that frame lands on 1952x1056, exactly 3904x2112 halved.
-    "45": opts.scaleTo
-      ? { class_type:"ImageScale", inputs:{ upscale_method:"lanczos", width: opts.scaleTo[0], height: opts.scaleTo[1], crop:"disabled", image:["125",0] } }
-      : { class_type:"ImageScaleToTotalPixels", inputs:{ upscale_method:"lanczos", megapixels: opts.megapixels, resolution_steps:1, image:["125",0] } },
-
-    "68:38": { class_type:"CLIPLoader", inputs:{ clip_name:"mistral_3_small_flux2_bf16.safetensors", type:"flux2", device:"default" } },
-    "68:12": { class_type:"UNETLoader", inputs:{ unet_name:"flux2_dev_fp8mixed.safetensors", weight_dtype:"default" } },
-    "68:10": { class_type:"VAELoader", inputs:{ vae_name:"full_encoder_small_decoder.safetensors" } },
-    ...(useLora ? { "68:89": { class_type:"LoraLoaderModelOnly", inputs:{ lora_name:"Flux_2-Turbo-LoRA_comfyui.safetensors", strength_model:1, model:["68:12",0] } } } : {}),
-
-    "68:6":  { class_type:"CLIPTextEncode", inputs:{ text: opts.prompt, clip:["68:38",0] } },
-    "68:26": { class_type:"FluxGuidance", inputs:{ guidance: opts.guidance, conditioning:["68:6",0] } },
-
-    "68:44": { class_type:"VAEEncode", inputs:{ pixels:["45",0], vae:["68:10",0] } },
-    "68:43": { class_type:"ReferenceLatent", inputs:{ conditioning:["68:26",0], latent:["68:44",0] } },
-    "68:72": { class_type:"GetImageSize", inputs:{ image:["45",0] } },
-    // img2img starts from the encoded source instead, so the empty latent is
-    // left out of the graph rather than built and ignored.
-    ...(img2img ? {} : { "68:47": { class_type:"EmptyFlux2LatentImage", inputs:{ width:["68:72",0], height:["68:72",1], batch_size:1 } } }),
-    "68:48": { class_type:"Flux2Scheduler", inputs:{ steps, width:["68:72",0], height:["68:72",1] } },
-    ...(img2img ? { "68:95": { class_type:"SplitSigmasDenoise", inputs:{ sigmas:["68:48",0], denoise } } } : {}),
-
-    "68:25": { class_type:"RandomNoise", inputs:{ noise_seed: opts.seed } },
-    "68:16": { class_type:"KSamplerSelect", inputs:{ sampler_name:"euler" } },
-    "68:22": { class_type:"BasicGuider", inputs:{ model:[useLora ? "68:89" : "68:12", 0], conditioning:["68:43",0] } },
-    "68:13": { class_type:"SamplerCustomAdvanced", inputs:{ noise:["68:25",0], guider:["68:22",0], sampler:["68:16",0],
-      sigmas: img2img ? ["68:95",1] : ["68:48",0],
-      latent_image: img2img ? ["68:44",0] : ["68:47",0] } },
-    "68:8":  { class_type:"VAEDecode", inputs:{ samples:["68:13",0], vae:["68:10",0] } },
-
-    "9": { class_type:"SaveImage", inputs:{ images:["68:8",0], filename_prefix:"SSS" } }
-  };
-
-  // Sketch to Add: regenerate only inside a drawn mask.
-  //
-  // SetLatentNoiseMask only means anything if the sampler starts from the
-  // source's own latent — an empty latent has no original for the mask to
-  // protect — so latent_image is repointed here rather than left on the
-  // empty-latent branch above. Measured 2026-08-19, adding a tree to a
-  // finished 3904x2112 exterior at the same seed, difference from the source:
-  //
-  //                inside mask     outside mask
-  //   no mask         45.9          29.5  (68% of pixels moved)
-  //   with mask       46.5          10.2  (27% of pixels moved)
-  //
-  // Inside is regenerated just as strongly either way; outside drops by two
-  // thirds. A hard mask edge shows as a seam, hence the feather.
-  if(opts.maskImage){
-    const f = Math.max(0, Math.round(opts.maskFeather || 0));
-    g["900"] = { class_type:"LoadImageMask", inputs:{ image: opts.maskImage, channel:"red" } };
-    g["902"] = { class_type:"FeatherMask", inputs:{ mask:["900",0], left:f, top:f, right:f, bottom:f } };
-    g["901"] = { class_type:"SetLatentNoiseMask", inputs:{ samples:["68:44",0], mask:["902",0] } };
-    g["68:13"].inputs.latent_image = ["901",0];
-
-    // That residual 10.2 is not drift: the whole frame still round-trips the
-    // VAE, so outside the mask reads as "the original, very slightly softer".
-    // Compositing the untouched pixels back makes it exact — but it also erases
-    // any shadow the new object throws beyond the mask, which is the one thing
-    // this mode exists to get right. Hence a choice, not the default.
-    if(opts.lockOutside){
-      g["903"] = { class_type:"ImageCompositeMasked", inputs:{
-        destination:["45",0], source:["68:8",0], x:0, y:0, resize_source:false, mask:["902",0] } };
-      g["9"].inputs.images = ["903",0];
-    }
-  }
-  return g;
-}
-const SAVE_IMAGE_NODE_ID_SSS = "9";
+// Klein is 5-10x faster on every mode measured. The one place FLUX.2 was still
+// ahead is Add People, where it held the approved photograph to 6.64 mean
+// difference against Klein's 14.46 — peetz took the speed anyway on 2026-09-02.
 
 // Skp to Render on Flux.2 Klein 9B distilled.
 //
@@ -403,22 +299,6 @@ function buildKleinSketchPrompt(opts){
   return g;
 }
 
-// Same shape as the Upscale engine switch: klein9b is a third model family, so
-// freeIfModelSwitch has to be told about it or the 12GB card keeps a stale
-// flux2 resident and the Klein load spills to system RAM.
-function renderEngine(){
-  const el = $('sEngine');
-  return (el && el.value === 'flux2') ? 'flux2' : 'klein9b';
-}
-function buildRenderPrompt(opts){
-  return renderEngine() === 'klein9b' ? buildKleinPrompt(opts) : buildSSSPrompt(opts);
-}
-function renderSaveNodeId(){
-  return renderEngine() === 'klein9b' ? SAVE_IMAGE_NODE_ID_KLEIN : SAVE_IMAGE_NODE_ID_SSS;
-}
-function renderModelKind(){
-  return renderEngine() === 'klein9b' ? 'klein9b' : 'flux2';
-}
 
 // ---------------------------------------------------------------------------
 let state = { workflow:"magnific", uploadedName:null, origPreviewURL:null, connected:false, clientId: crypto.randomUUID(), autoMaterials:"", lastResult:null, lastModelKind:null };
@@ -1361,23 +1241,18 @@ function applyPromptType(){
     $('sPrompt').readOnly = true;
     hiddenPromptCache = buildExteriorPrompt();
     $('sPrompt').value = PROMPT_MASK;
-    $('sGuidance').value = '4';
   } else if(type === 'semiOutdoor'){
     $('sExtControls').style.display = '';
     $('sIntControls').style.display = 'none';
     $('sPrompt').readOnly = true;
     hiddenPromptCache = buildSemiOutdoorPrompt();
     $('sPrompt').value = PROMPT_MASK;
-    $('sGuidance').value = '4';
   } else if(type === 'interior'){
     $('sExtControls').style.display = 'none';
     $('sIntControls').style.display = '';
     $('sPrompt').readOnly = true;
     hiddenPromptCache = buildInteriorPrompt();
     $('sPrompt').value = PROMPT_MASK;
-    // Interior was validated at 3.5, exterior at 4 — the two prompt sets differ
-    // enough that one guidance value does not suit both. Still editable after.
-    $('sGuidance').value = '3.5';
   } else {
     $('sExtControls').style.display = 'none';
     $('sIntControls').style.display = 'none';
@@ -2485,10 +2360,8 @@ function skSetStage(which){
 // The two scopes use different controls, and a control that does nothing is
 // worse than no control — the Feather box sat there for weeks doing nothing.
 function skSyncScope(){
-  const full = $('skScope').value !== 'masked';
-  $('skDenoiseField').style.display = full ? '' : 'none';
-  $('skRoomField').style.display = full ? 'none' : '';
-  $('skLockField').style.display = full ? 'none' : '';
+  // Room only means something when there is a mask for it to grow.
+  $('skRoomField').style.display = $('skScope').value !== 'masked' ? 'none' : '';
 }
 
 function skSyncMode(){
@@ -2616,40 +2489,19 @@ async function runSketchPasses(){
   // the frame comes out of the VAE the shape it went in. Measured 1968x1056
   // in, 1312x704 out, 1.863636 both.
   const full = $('skScope').value !== 'masked';
-  const skSteps = $('skTurbo').value === 'quality' ? 20 : 8;
-  const skDenoiseVal = parseFloat($('skDenoise').value);
   const room = Math.round(Math.min(mw, mh) * (parseFloat($('skRoom').value) || 0) / 100);
   const seed = parseInt($('skSeed').value);
   const img = $('skImg');
   const common = {
-    mode: $('skTurbo').value,
-    guidance: parseFloat($('skGuidance').value),
     megapixels: parseFloat($('skMegapixels').value),
     // Fixed for the whole run, from the frame that was uploaded. Every pass
     // works at one size, so chaining cannot drift the proportions either.
     scaleTo: skSketchSize(img.naturalWidth, img.naturalHeight, parseFloat($('skMegapixels').value)),
-    lockOutside: $('skLock').checked,
-    // Below 1 the sampler starts from the painted frame instead of from noise,
-    // which is what lets the drawing steer a run that has no mask to steer it.
-    //
-    // SplitSigmasDenoise cuts on whole steps — round(steps * denoise) — so the
-    // slider is a step count wearing a percentage, and the top of it is a
-    // cliff, not a notch: skip nothing and the run starts from pure noise, and
-    // the frame the user drew on is thrown away entirely. Quality's 20 steps
-    // put that at 0.975, which the field's own maximum keeps out of reach;
-    // Turbo's 8 steps put it at 0.94, which it does not.
-    //
-    // 1.00 is not the top of that range, it is the other side of the graph:
-    // the source latent is dropped for an empty one and the whole frame is
-    // drawn again, with the painted frame reaching the model only as
-    // ReferenceLatent. peetz asked for it on 2026-08-20 and it is the default.
-    // Anything below 1 is still img2img and still clamps to one step short, so
-    // a value can never round its way into a full redraw by accident.
-    denoise: full ? (skDenoiseVal >= 1 ? 1 : Math.min(skDenoiseVal, (skSteps - 0.6) / skSteps)) : 1,
-    // FeatherMask fades the mask image's own four borders inward — it has
-    // nothing to do with the edge around a stroke, so it was never softening
-    // the seam it was labelled for. Left at zero rather than pretending.
-    maskFeather: 0
+    // Klein starts from an empty latent, so there is no source latent to hold
+    // back and no denoise to hold it with. The drawing reaches the model as
+    // pixels in the reference image and as the mask that buildKleinSketchPrompt
+    // composites through — nothing else.
+    denoise: 1
   };
 
   if(common.scaleTo[0] !== img.naturalWidth || common.scaleTo[1] !== img.naturalHeight){
@@ -2688,7 +2540,6 @@ async function runSketchPasses(){
       break;
     }
 
-    const kleinSk = renderEngine() === 'klein9b';
     const skOpts = Object.assign({}, common, {
       imageName: inputName,
       maskImage: maskName,
@@ -2700,9 +2551,7 @@ async function runSketchPasses(){
       seed: seed + i,
       prompt: buildSketchPromptP({ type: p.type, count: p.count, desc: SK_DESC[p.type], grounded: p.grounded })
     });
-    const img = kleinSk
-      ? await submitAndWait(buildKleinSketchPrompt(skOpts), SAVE_IMAGE_NODE_ID_KLEIN)
-      : await submitAndWait(buildSSSPrompt(skOpts), SAVE_IMAGE_NODE_ID_SSS);
+    const img = await submitAndWait(buildKleinSketchPrompt(skOpts), SAVE_IMAGE_NODE_ID_KLEIN);
 
     if(!img){ log('หยุดที่รอบ ' + (i+1) + ' — ผลของรอบก่อนหน้ายังใช้ได้', 'err'); break; }
     last = img;
@@ -2729,25 +2578,12 @@ async function runSketchPasses(){
     }
   }
 
-  if(last && $('skSettle').checked){
-    try{
-      log('รอบเก็บเงา — ไม่เพิ่มอะไรใหม่ ขอแค่ให้สิ่งที่ยืนอยู่ในแสงทอดเงาลงพื้น');
-      const res = await fetch(viewUrlFor(last));
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      const name = await uploadBlob(await res.blob(), 'sketchsettle_' + stamp + '.png');
-      const settled = await submitAndWait(buildSSSPrompt(Object.assign({}, common, {
-        imageName: name,
-        maskImage: undefined,
-        denoise: 0.95,
-        seed: seed + passes.length,
-        prompt: SK_SETTLE
-      })), SAVE_IMAGE_NODE_ID_SSS);
-      if(settled) last = settled;
-    }catch(e){
-      // The placement pass already succeeded; a failed settle must not lose it.
-      log('รอบเก็บเงาไม่สำเร็จ: ' + e.message + ' — ใช้ผลจากรอบก่อนหน้าได้', 'err');
-    }
-  }
+  // The settle pass is gone with FLUX.2. It re-ran the finished frame at
+  // denoise 0.95 to coax out a shadow, which needs a source latent to start
+  // from — Klein has none, so on this engine it would be a full redraw of the
+  // whole picture and would undo the composite that keeps the frame still. It
+  // was already off by default after it was measured dimming the image rather
+  // than casting anything.
 
   if(last){
     showRunResult(last);
@@ -2884,19 +2720,13 @@ if($('pEngine')) $('pEngine').addEventListener('change', applyUpscaleEngine);
 applyUpscaleEngine();
 
 // Klein is guidance-distilled and starts from an empty latent, so Guidance,
-// Quality/steps and Denoise have nothing to act on. Hiding them beats leaving
-// controls on screen that silently do nothing.
-function applyRenderEngine(){
-  const klein = renderEngine() === 'klein9b';
-  for(const id of ['sGuidanceField','sTurboField','sDenoiseField']){
-    const el = $(id);
-    if(el) el.style.display = klein ? 'none' : '';
-  }
+// Quality/steps and Denoise never had anything to act on and their controls are
+// gone. What is left is the floor: Klein was measured at 2.5MP and the HTML
+// default of 1 belonged to FLUX.2, so lift it once at load.
+(function renderSizeFloor(){
   const mp = $('sMegapixels');
-  if(mp && klein && parseFloat(mp.value) < 2.5) mp.value = '2.5';
-}
-if($('sEngine')) $('sEngine').addEventListener('change', applyRenderEngine);
-applyRenderEngine();
+  if(mp && parseFloat(mp.value) < 2.5) mp.value = '2.5';
+})();
 $('btnRandSeedSSS').addEventListener('click', ()=>{
   $('sSeed').value = Math.floor(Math.random()*1_000_000_000);
 });
@@ -2962,7 +2792,7 @@ async function runWorkflow(){
   // starting from the previous pass's output, so it never reaches the
   // single-graph path below.
   if(state.workflow === 'sketch'){
-    await freeIfModelSwitch('flux2');
+    await freeIfModelSwitch('klein9b');
     await runSketchPasses();
     btnRun.disabled = false;
     return;
@@ -2973,34 +2803,26 @@ async function runWorkflow(){
     const opts = {
       imageName: state.uploadedName,
       prompt: $('sPromptType').value === 'custom' ? $('sPrompt').value : hiddenPromptCache,
-      mode: $('sTurbo').value,
-      guidance: parseFloat($('sGuidance').value),
       megapixels: parseFloat($('sMegapixels').value),
       scaleTo: workSizeForPreview(parseFloat($('sMegapixels').value)),
-      // Add People deliberately does not pass this: its input is already a
-      // finished photograph, and starting from its latent would leave no room
-      // for the figures to appear.
-      denoise: parseFloat($('sDenoise').value),
       seed: parseInt($('sSeed').value)
     };
-    prompt = buildRenderPrompt(opts);
-    saveImageNodeId = renderSaveNodeId();
+    prompt = buildKleinPrompt(opts);
+    saveImageNodeId = SAVE_IMAGE_NODE_ID_KLEIN;
   }else if(state.workflow === 'people'){
     // Same graph as Sketchup-to-Render. The mode differs only in the text it
     // sends: see buildAddPeoplePromptP for why a shorter prompt is the whole
     // mechanism and no img2img pass is involved.
-    prompt = buildSSSPrompt({
+    prompt = buildKleinPrompt({
       imageName: state.uploadedName,
       prompt: buildAddPeoplePromptP({
         pose: $('apPose').value, count: parseInt($('apCount').value), desc: $('apDesc').value
       }),
-      mode: $('apTurbo').value,
-      guidance: parseFloat($('apGuidance').value),
       megapixels: parseFloat($('apMegapixels').value),
       scaleTo: workSizeForPreview(parseFloat($('apMegapixels').value)),
       seed: parseInt($('apSeed').value)
     });
-    saveImageNodeId = SAVE_IMAGE_NODE_ID_SSS;
+    saveImageNodeId = SAVE_IMAGE_NODE_ID_KLEIN;
   }else{
     const opts = {
       imageName: state.uploadedName,
@@ -3015,9 +2837,7 @@ async function runWorkflow(){
   }
 
   await freeIfModelSwitch(
-    state.workflow === 'magnific' ? upscaleModelKind()
-    : state.workflow === 'sss'    ? renderModelKind()
-    : 'flux2');
+    state.workflow === 'magnific' ? upscaleModelKind() : 'klein9b');
 
   const img = await submitAndWait(prompt, saveImageNodeId);
   if(img) showRunResult(img);
