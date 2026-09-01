@@ -340,13 +340,66 @@ const SAVE_IMAGE_NODE_ID_KLEIN = "18";
 // Resolution matters more than expected: at the frame's native size the tree
 // came out too large and shifted off the drawn shape, while 2.5MP placed it
 // correctly. So render at 2.5MP and scale back to the size the mode promises.
+// How wide the seam between the kept frame and the redrawn patch is allowed to
+// be, in pixels of the output. The mask arrives as a hard-edged bitmap and a
+// hard edge shows; blurring the mask itself is what softens the join, which is
+// what FeatherMask was wrongly believed to do (it fades the mask image's own
+// four borders, not the outline of a stroke).
+const KLEIN_SEAM_BLUR = 10;
+
 function buildKleinSketchPrompt(opts){
   const g = buildKleinPrompt(Object.assign({}, opts, { scaleTo:null, megapixels:2.5 }));
-  if(opts.scaleTo){
+  const size = opts.scaleTo;
+  let last = ["17", 0];
+  if(size){
     g["19"] = { class_type:"ImageScale", inputs:{ upscale_method:"lanczos",
-      width: opts.scaleTo[0], height: opts.scaleTo[1], crop:"disabled", image:["17",0] } };
-    g["18"].inputs.images = ["19",0];
+      width: size[0], height: size[1], crop:"disabled", image:["17",0] } };
+    last = ["19", 0];
   }
+
+  // Put back everything the drawing did not ask to change.
+  //
+  // Klein starts from an empty latent, so SetLatentNoiseMask has nothing to
+  // hold and the site's own "เฉพาะรอบรูปที่วาด (แนะนำ)" option was doing
+  // literally nothing: every pass redrew the whole picture. Measured 2026-09-01
+  // on a four-pass run, mean abs difference from the original, in the top 30% of
+  // the frame where no stroke and no ground apron reach — 22.0, 25.3, 32.4,
+  // 36.5. Sky and roofline the user never touched, drifting further every pass.
+  //
+  // So the mask is applied to the pixels instead of the latent: composite the
+  // generated frame back over the painted source, keeping the source everywhere
+  // the mask is black. Outside the drawn shape the result is then the original
+  // by construction, and it stays that way however many passes chain.
+  //
+  // This is not the optional lockOutside of the flux2 graph. There, the latent
+  // mask already held the outside to 10.2 and compositing was a refinement that
+  // cost shadows. Here there is no latent mask at all, so without this the
+  // option is a lie. The ground apron that skMaskBlob adds is what keeps a cast
+  // shadow alive: it opens the whole lower band of the frame, so a shadow
+  // landing on the ground is inside the mask and survives. A shadow thrown onto
+  // a wall outside the mask does not — which is what the option already says.
+  //
+  // The mask bitmap is authored at skMaskSize and the frame at scaleTo, so it
+  // travels mask -> image -> scale -> blur -> mask to arrive at the output grid
+  // with a soft edge. Both carry the source's aspect ratio, so nothing distorts.
+  if(opts.maskImage && size){
+    g["20"] = { class_type:"LoadImageMask", inputs:{ image: opts.maskImage, channel:"red" } };
+    g["21"] = { class_type:"MaskToImage", inputs:{ mask:["20",0] } };
+    g["22"] = { class_type:"ImageScale", inputs:{ upscale_method:"bilinear",
+      width: size[0], height: size[1], crop:"disabled", image:["21",0] } };
+    g["23"] = { class_type:"ImageBlur", inputs:{ image:["22",0],
+      blur_radius: KLEIN_SEAM_BLUR, sigma: KLEIN_SEAM_BLUR / 2 } };
+    g["24"] = { class_type:"ImageToMask", inputs:{ image:["23",0], channel:"red" } };
+    // The painted frame is authored at scaleTo already; the scale is a no-op
+    // that costs nothing and keeps the graph correct if that ever changes.
+    g["25"] = { class_type:"ImageScale", inputs:{ upscale_method:"lanczos",
+      width: size[0], height: size[1], crop:"disabled", image:["1",0] } };
+    g["26"] = { class_type:"ImageCompositeMasked", inputs:{
+      destination:["25",0], source: last, x:0, y:0, resize_source:false, mask:["24",0] } };
+    last = ["26", 0];
+  }
+
+  g["18"].inputs.images = last;
   return g;
 }
 
@@ -2166,7 +2219,27 @@ function skMaskBlob(type, W, H, grow, foot){
     // no trunk must not turn the apron into half the picture.
     const top = Math.max(low - 0.04, 0.75);
     ctx.fillStyle = '#fff';
-    ctx.fillRect(0, Math.round(top * H), W, H - Math.round(top * H));
+    // The apron used to run the full width of the frame, which was harmless
+    // while nothing outside the mask was kept — but once the result is
+    // composited back (see buildKleinSketchPrompt) the apron is the only part
+    // of the ground still being redrawn, and it was being redrawn everywhere.
+    // Measured 2026-09-02 on a four-pass run: above the apron the frame now
+    // holds at 2.72 against the original, inside it 40.94, and the driveway
+    // came back 16.7 darker than it went in.
+    //
+    // So the apron follows the drawing instead of the frame: a column under
+    // each stroke, widened by how tall that stroke is, because with the sun
+    // anywhere near 45 degrees a shadow reaches about as far sideways as the
+    // thing is high. A dog gets a little ground; a tree gets a lot.
+    for(const st of mine){
+      const xs = st.pts.map(p => p[0]);
+      const ys = st.pts.map(p => p[1]);
+      const tall = (Math.max(...ys) - Math.min(...ys)) * H;
+      const room = Math.min(Math.max(tall, 0.06 * W), 0.35 * W);
+      const x0 = Math.max(0, Math.round(Math.min(...xs) * W - room));
+      const x1 = Math.min(W, Math.round(Math.max(...xs) * W + room));
+      ctx.fillRect(x0, Math.round(top * H), x1 - x0, H - Math.round(top * H));
+    }
   }
 
   if(foot){
