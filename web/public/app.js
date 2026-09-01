@@ -1536,6 +1536,15 @@ const SK_TYPES = [
   { id:'fgleaf',  label:'พุ่มหน้าภาพ',  color:'#2E7D32', paint:'#2E5227', order:5, noRoom:1 }
 ];
 const SK_TYPE_BY_ID = Object.fromEntries(SK_TYPES.map(t => [t.id, t]));
+
+// What to type into each pass's own field. Only the chips where the field
+// decides what appears get a line of their own; the rest keep the generic one.
+const SK_DESC_HINT = {
+  tree:   'ชนิดต้นไม้ — ใช้ชื่ออังกฤษ เช่น a rain tree, a frangipani, a mango tree',
+  canopy: 'ชนิดต้นไม้ — ใช้ชื่ออังกฤษ เช่น a rain tree, a frangipani, a mango tree',
+  animal: 'ชนิดสัตว์ — ไทยก็ได้ เช่น แมว, หมาพันธุ์โกลเด้น รีทรีฟเวอร์',
+  car:    'ยี่ห้อ/รุ่นรถ เช่น Porsche 911 GT3, Mercedes-Benz CLE 53 AMG'
+};
 // Anything under this is too narrow to be a canopy, so on the tree chip it is
 // stamped in bark instead of green.
 const SK_THIN = 6;
@@ -1599,16 +1608,57 @@ const SK_FRAMING = { fgtrunk:1, fgleaf:1 };
 // Light sources need the opposite clause: they give light rather than take it.
 const SK_EMIT = ` The light it gives off is the same colour temperature as the light already in the picture. Its glow spreads onto the surfaces immediately around it and fades away gradually; nothing further away in the frame changes exposure.`;
 
+// Which chips have to name the thing, and what they name when the user has not
+// said. See the measurements above the tree entry: an unnamed tree is not a
+// vague tree, it is no tree, and an unnamed animal came back as a cow.
+//
+// The name goes in its own sentence rather than into the noun phrase, so the
+// wording that was tuned over the earlier renders is untouched and the grammar
+// survives a count above one.
+const SK_DEFAULT_SPECIES = {
+  tree:   ['a rain tree (Samanea saman)', 'rain trees (Samanea saman)'],
+  animal: ['a dog', 'dogs']
+};
+function skSpecies(n, p, key){
+  const said = String((p && p.species) || '').trim();
+  const fallback = SK_DEFAULT_SPECIES[key];
+  if(!said && !fallback) return '';
+  const what = said || (n === 1 ? fallback[0] : fallback[1]);
+  return n === 1
+    ? ` It is ${what}.`
+    : ` They are all ${what}.`;
+}
+
 const SK_WHAT = {
-  tree: n => n === 1
+  // The species is in the sentence because without one, Klein draws no tree at
+  // all. Measured 2026-09-01, same stroke and same seed on one frame:
+  //
+  //   nothing extra (the wording that shipped)                no tree
+  //   "a broadleaf shade tree with a wide spreading crown"    no tree
+  //   "a mango tree"                                          a mango tree
+  //   "a rain tree (Samanea saman)"                           a rain tree
+  //   "a frangipani (Plumeria)"                               a frangipani
+  //
+  // So it is not detail that is missing, it is a name: the middle line is
+  // longer and more specific than the first and still produced nothing. It also
+  // has to be a name the model knows — the Thai "ต้นจามจุรี" drew nothing while
+  // the same tree in English drew fine. (Thai does work for animals: "แมว"
+  // returns a cat. The gap is botanical vocabulary, not the language.)
+  //
+  // Placement matters too and is not enough on its own: against a wall under a
+  // carport roof, even a named species stayed away. Name it AND draw it
+  // somewhere a tree could stand.
+  tree: (n, p) => (n === 1
     ? `The only change is that a tree now grows in it: a real tree standing on the ground with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around it.`
-    : `The only change is that trees now grow in it: real trees standing on the ground, each with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around them.`,
+    : `The only change is that trees now grow in it: real trees standing on the ground, each with a trunk, a branching structure and a full leafy canopy, at a believable size for the space around them.`)
+    + skSpecies(n, p, 'tree'),
   // Says nothing about a trunk or about the ground. This region is the crown
   // and only the crown; whatever holds it up is the trunk pass's problem, and
   // mentioning it here is what let foliage wander down the trunk's strip.
-  canopy: n => n === 1
+  canopy: (n, p) => (n === 1
     ? `The only change is that the leafy crown of a tree now fills it: dense foliage carried on spreading branches, thinning to open sky at its edges, at a believable size for the space around it.`
-    : `The only change is that the leafy crowns of trees now fill it: dense foliage carried on spreading branches, thinning to open sky at their edges, at a believable size for the space around them.`,
+    : `The only change is that the leafy crowns of trees now fill it: dense foliage carried on spreading branches, thinning to open sky at their edges, at a believable size for the space around them.`)
+    + skSpecies(n, p, 'tree'),
   // The two clauses that matter: it reaches the ground at the bottom, and it
   // reaches the foliage at the top. Both ends are named because both ends are
   // where the previous attempts stopped short. Order 2 puts it after the crown,
@@ -1626,9 +1676,18 @@ const SK_WHAT = {
   car: n => n === 1
     ? `The only change is that a car now stands in it: an ordinary everyday road car, parked on the ground, correctly scaled to the space.`
     : `The only change is that cars now stand in it: ordinary everyday road cars, parked on the ground, correctly scaled to the space.`,
-  animal: n => n === 1
-    ? `The only change is that an animal is now present in it: an ordinary animal that belongs in a place like this, standing on the ground, correctly scaled to the space.`
-    : `The only change is that animals are now present in it: ordinary animals that belong in a place like this, standing on the ground, correctly scaled to the space.`,
+  // "an ordinary animal that belongs in a place like this" was the conditional
+  // form, and on Klein it reads as livestock: measured 2026-09-01 on a suburban
+  // driveway it produced a cow standing in the carport, and in a chained run a
+  // full-grown deer with its head missing, beside a fawn. Neither was scaled to
+  // the stroke — the drawing was 52px and the deer filled a third of the frame.
+  // Naming the animal fixes the species AND the scale in one go. peetz's own
+  // words for this chip are "สัตว์(แมว,หมา)", so a dog is the default and the
+  // description field is where a cat or a breed goes.
+  animal: (n, p) => (n === 1
+    ? `The only change is that an animal is now present in it, standing on the ground, correctly scaled to the space and secondary to the place itself.`
+    : `The only change is that animals are now present in it, standing on the ground, correctly scaled to the space and secondary to the place itself.`)
+    + skSpecies(n, p, 'animal'),
   // "of the kind this place already uses" is the conditional form again: it
   // makes the model read the room rather than invent a fitting for it.
   lamp: n => n === 1
@@ -1702,10 +1761,16 @@ function buildSketchPromptP(p = {}){
     : SK_FRAMING[type] ? (count === 1 ? SK_FRAME : SK_FRAME_PL)
     : (count === 1 ? SK_DAYLIT : SK_DAYLIT_PL);
   const desc = String(p.desc || '').trim();
+  // On the chips that have to name the thing, the description field IS that
+  // name: it replaces the default species rather than arriving after it, so the
+  // sentence never asks for a rain tree and a mango tree at once. Everywhere
+  // else the field keeps its old meaning and is appended.
+  const names = !!SK_DEFAULT_SPECIES[type === 'canopy' ? 'tree' : type];
+  const q = names ? Object.assign({}, p, { species: desc }) : p;
   // Free text is appended rather than spliced in, so the wording that was
   // actually rendered stays byte-for-byte intact.
-  const parts = [SK_BASE + ' ' + SK_WHAT[type](count, p) + tail + (SK_FOLIAGE[type] ? SK_FINE_LEAF + SK_LEAF_GLOSS : '')];
-  if(desc) parts.push(`Additional Instructions:\n${desc}`);
+  const parts = [SK_BASE + ' ' + SK_WHAT[type](count, q) + tail + (SK_FOLIAGE[type] ? SK_FINE_LEAF + SK_LEAF_GLOSS : '')];
+  if(desc && !names) parts.push(`Additional Instructions:\n${desc}`);
   return parts.join('\n\n');
 }
 
@@ -2260,7 +2325,12 @@ function skRefreshUI(){
         + '<span class="cnt">×' + p.count + '</span>';
       const inp = document.createElement('input');
       inp.type = 'text';
-      inp.placeholder = 'รายละเอียดเพิ่มเติม (ไม่ใส่ก็ได้)';
+      // On the naming chips this field is not "extra detail", it is the whole
+      // difference between a tree and no tree — so the placeholder asks for the
+      // name and shows what a working answer looks like. English for plants:
+      // the Thai name of a Thai tree drew nothing, while the same tree named in
+      // English drew fine. Animals are not like that — "แมว" returns a cat.
+      inp.placeholder = SK_DESC_HINT[p.type] || 'รายละเอียดเพิ่มเติม (ไม่ใส่ก็ได้)';
       inp.value = SK_DESC[p.type] || '';
       // Only the prompt preview is rebuilt while typing — rebuilding this list
       // would take the focus out of the field on every keystroke.
