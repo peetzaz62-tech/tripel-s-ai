@@ -2844,13 +2844,15 @@ async function runWorkflow(){
   btnRun.disabled = false;
 }
 
-// The Magnific graph loads flux1-dev-fp8; every other mode loads
-// flux2_dev_fp8mixed. ComfyUI's own eviction didn't reliably swap these on the
-// shared GPU box — measured 2026-08-17: a stale flux2 load left only
-// 743MB/12.8GB VRAM free, so the flux1 load partially offloaded to system RAM
-// and took 10x longer than normal. Forcing an unload only on an actual
-// model-family switch (not on repeat runs of the same workflow) avoids paying
-// that reload cost when it isn't needed.
+// Three families are still reachable: Klein 9B for Render, Add People and
+// Sketch to Add; flux1-dev-fp8 for the Upscale card's detail engine; SeedVR2 for
+// its fast one. ComfyUI's own eviction did not reliably swap between them on
+// this box — measured 2026-08-17, when a stale load left only 743MB of 12.8GB
+// free and the next model partially offloaded to system RAM, taking 10x longer
+// than normal. Forcing an unload only on an actual model-family switch, not on
+// repeat runs of the same workflow, avoids paying that reload when it is not
+// needed. Now that every generative mode is Klein, the only switch left in
+// ordinary use is stepping into or out of Upscale.
 async function freeIfModelSwitch(modelKind){
   if(state.lastModelKind && state.lastModelKind !== modelKind){
     log('Switching model family (' + state.lastModelKind + ' -> ' + modelKind + '), freeing GPU memory first...');
