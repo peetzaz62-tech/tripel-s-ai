@@ -648,6 +648,129 @@ function extConsistencyReminder(){
   return `Final check: an ultra-detailed high-resolution photograph in which the building's geometry, every opening, and the ground layout (paved stays paved, planted stays planted, water stays water) match the source image exactly, every shadow matches the sky described above, and the frame contains no figure, object, or element that was absent from the source image.`;
 }
 
+// ---------------------------------------------------------------------------
+// Booth & Exhibition.
+//
+// A trade-show booth is not a building, and the two failure modes that matter
+// here do not exist in the other presets:
+//
+//  1. The graphics ARE the design. A booth is logos, product shots, printed
+//     panels and shelved product. A model that treats them as decoration
+//     re-letters the brand name into nonsense and swaps the packaging, and the
+//     render is then worthless whatever else it got right. EXH_ARTWORK is the
+//     strongest fidelity clause in this file for that reason, and it comes
+//     first.
+//
+//     Its tail used to forbid invented signage outright -- "no logo, sign,
+//     banner or piece of text that is not already in the source appears
+//     anywhere". That sentence caused the thing it forbade, the same way
+//     naming a thing summons it everywhere else on Klein. Measured on three
+//     booth sources at seed 62: the tent grew a fascia reading
+//     "BHAGHICEOMAPUR" and the A-frame's empty banner half grew a "PLUTON"
+//     logo. Replacing the prohibition with a positive instruction -- a blank
+//     panel stays blank board -- cleared both, and as a bonus the tent kept
+//     its own pop-up shape instead of hardening into a shell scheme.
+//  2. The hall is what makes it read as a real show rather than a render on a
+//     white void: a high truss ceiling with spot fixtures, a hard reflective
+//     floor, and other booths receding out of focus. The source almost never
+//     models any of it.
+// ---------------------------------------------------------------------------
+const EXH_INTRO = `Turn this exhibition booth 3D render into a real photograph taken on the show floor, from the exact same camera position with identical framing and perspective. The result is a straight photograph — nothing about it may look like CGI, a rendering, or an illustration.`;
+
+const EXH_ARTWORK = `Preserve the booth's graphics exactly. Every logo, brand name, headline, block of text, product photograph, printed panel and product package keeps the artwork it already has: the same wording letter for letter, the same typeface, the same colours, at the same size and in the same position on the same panel. Nothing is re-lettered, re-worded, translated, re-laid-out or replaced with different artwork. Any panel, fascia, header or banner that carries no artwork in the source stays empty: it is plain board in its own flat colour, with nothing printed on it.`;
+
+const EXH_STRUCTURE = `Preserve the booth's construction exactly: its overall shape and footprint, the height and position of every wall, fascia, header and bulkhead, every counter, shelf, cabinet, display case and lightbox, and the position of every product on every shelf. Panel joints, edges, radii and reveals stay where they are.`;
+
+const EXH_MATERIAL = `Add only what a real camera adds: the printed panels gain the slight texture and sheen of real print on board, laminate and acrylic read as the materials they are, metal trims catch real highlights, and every surface keeps its own colour. Light behaves physically with bounce and soft contact shadows, natural depth of field, subtle sensor grain, no HDR look.`;
+
+// KNOWN LIMIT: "off" together with the outdoor venue is the one combination
+// that still invents artwork on a large blank sign panel. Measured on the
+// A-frame booth at seed 62, changing one control at a time:
+//
+//   outdoor + off      -> invented logo on the blank banner half
+//   outdoor + mixed    -> blank half stays clean
+//   tent (indoor) + off-> blank half stays clean
+//
+// So it is the pairing, not the option. Giving "off" the same graphics tail
+// the other three carry was tried and did NOT fix it -- the tail is kept only
+// because it reads consistently, not because it works. Per the project rule,
+// two rewrites failed, so the next attempt should change something other than
+// the wording. Until then: outdoors, prefer any setting but "off".
+const EXH_LIGHTING = {
+  cool:  `Booth Lighting: the booth's own fittings are switched on and read as cool white, close to daylight, so white panels stay white and the printed colours read true. The light is even across the graphics with no hot spots and no yellow cast.`,
+  warm:  `Booth Lighting: the booth's own fittings are switched on and read as warm white, giving the timber and the counters a gentle warmth, while the printed graphics stay legible and keep their own colours rather than turning orange.`,
+  mixed: `Booth Lighting: the booth's own fittings are switched on in cool white over the graphics and product, with warmer accent light in the seating and counter areas, the two reading as a deliberate lighting design rather than a colour cast.`,
+  off:   `Booth Lighting: the booth's own fittings are not switched on. All the light in the frame arrives from the venue's own lighting, and under it the printed graphics stay legible and keep their own colours, every panel the source leaves blank still reading as blank board.`
+};
+
+const EXH_HALL = {
+  hall:    `The Venue: a large indoor exhibition hall. High overhead, an exposed steel truss ceiling carries rows of spotlights and floodlights on track, and the space beyond the booth recedes into the depth of the hall.`,
+  tent:    `The Venue: a large event marquee. Overhead, a white tensioned fabric roof on a clear-span frame diffuses the light evenly, with festoon or track lighting hung beneath it.`,
+  atrium:  `The Venue: the atrium of a shopping mall. Daylight falls from a glazed roof several storeys above, balconies and railings of the upper floors are visible around and above the booth, and the space is bright and open.`,
+  foyer:   `The Venue: a conference centre foyer. A flat finished ceiling carries recessed downlights and linear fittings, and full-height glazing along one side lets daylight in.`,
+  outdoor: `The Venue: an open-air event ground in daylight. There is no roof over the booth beyond what the booth itself carries; open sky is above it, the daylight is directional and casts real shadows on the ground, and low buildings or trees sit well back behind the booth, softened by distance.`
+};
+
+// Three of the four venues are indoor rooms, so several clauses below name a
+// hall by default. Outdoor has to unsay them: there is no ceiling to bounce
+// off, the neighbours are stalls rather than stands, and "lights off" means
+// daylight, not house lighting.
+const EXH_IS_OUTDOOR = h => h === 'outdoor';
+
+const EXH_FLOOR = {
+  concrete: `The Floor: polished concrete, hard and slightly reflective, carrying a soft blurred reflection of the booth and of the lights overhead, with the real scuffs and joint lines of a working hall floor.`,
+  carpet:   `The Floor: flat commercial carpet tiles in a plain colour, matte with no reflection, showing the faint seams between tiles.`,
+  vinyl:    `The Floor: a smooth vinyl or epoxy floor, satin rather than mirror, with a soft wide reflection under the booth and its lights.`,
+  platform: `The Floor: the booth stands on its own raised platform with a visible edge and a step down to the floor around it, the platform surface reading as the material the source shows.`,
+  paving:   `The Floor: outdoor ground — paving slabs, blockwork or asphalt, matte and dry, with the joint lines, wear and slight unevenness of a real surface underfoot.`
+};
+
+const EXH_NEIGHBOURS = ` Other exhibition booths stand around and behind this one, receding into the hall — their structures, colours and lit signage readable as booths but thrown well out of focus, so nothing on them competes for attention and no legible text appears on any of them.`;
+const EXH_ALONE = ` The space around the booth is the open venue itself, uncluttered, with no other booth crowding the frame.`;
+
+const EXH_NEIGHBOURS_OUT = ` Other stands and stalls of the same event stand around and behind this one, their canopies and structures readable as stalls but thrown well out of focus, so nothing on them competes for attention and no legible text appears on any of them.`;
+
+const EXH_PROPS = ` The booth is dressed as it would be on the day: catalogues and leaflets fanned on the counter, a couple of small plants, glassware or sample product set out where the design intends it, all of it modest and secondary to the booth itself.`;
+
+// Density, and the one thing a show photograph needs that a building shot does
+// not: visitors walking. A frozen crowd reads as a crowd of mannequins, so the
+// people who are moving are smeared by the exposure while the booth stays sharp
+// — the same long-exposure device the interior preset uses for one walker.
+const EXH_PEOPLE = {
+  none: '',
+  few:  `People: one to three visitors at the booth, at the counter or looking at the product, dressed for a business trade show. Anyone standing still is sharp; anyone walking is smeared into a soft translucent streak by the exposure while the booth itself stays perfectly sharp. They are correctly scaled to the space and secondary to the booth.`,
+  some: `People: five to eight visitors and staff around the booth — some talking at the counter, some looking at the shelves, some passing by — dressed for a business trade show. Those standing still are sharp; those walking are smeared into soft translucent streaks by the exposure while the booth itself stays perfectly sharp. They are correctly scaled to the space and secondary to the booth.`,
+  many: `People: a busy stand, ten or more visitors and staff around and beyond the booth, dressed for a business trade show. Those standing still are sharp; the many who are walking are smeared into soft translucent streaks by the exposure while the booth itself stays perfectly sharp. They are correctly scaled to the space and secondary to the booth.`
+};
+
+const EXH_QUALITY = `Color & Photographic Quality: neutral accurate white balance — the booth's whites read as clean white and its brand colours read exactly as printed, with no overall warm or cool cast. A commercial trade-show photograph on a full-frame camera and a sharp wide lens: everything from the counter to the far side of the booth in focus, subtle sensor grain, believable reflections and contact shadows. No HDR look, oversaturation, or artificial sharpening.`;
+
+const EXH_FINAL = `Final check: an ultra-detailed high-resolution photograph in which the booth's shape, every panel, every shelf and every product sits exactly where the source image put it, every logo and every word of text reads exactly as the source spells it, and every panel the source leaves blank is still blank board in the photograph.`;
+
+function buildExhibitionPromptP(p = {}){
+  const lighting = EXH_LIGHTING[p.exhLight] ? p.exhLight : 'cool';
+  const hall = EXH_HALL[p.exhHall] ? p.exhHall : 'hall';
+  const floor = EXH_FLOOR[p.exhFloor] ? p.exhFloor : 'concrete';
+  const people = EXH_PEOPLE[p.exhPeople] !== undefined ? p.exhPeople : 'none';
+  const outdoor = EXH_IS_OUTDOOR(hall);
+  const extra = String(p.exhExtra || '').trim();
+
+  const parts = [
+    outdoor ? EXH_INTRO.replace('on the show floor', 'at the event') : EXH_INTRO,
+    EXH_ARTWORK,
+    EXH_STRUCTURE,
+    EXH_MATERIAL,
+    EXH_LIGHTING[lighting],
+    EXH_HALL[hall] + (p.exhNeighbours ? (outdoor ? EXH_NEIGHBOURS_OUT : EXH_NEIGHBOURS) : EXH_ALONE),
+    EXH_FLOOR[floor] + (p.exhProps ? EXH_PROPS : ''),
+    EXH_PEOPLE[people],
+    EXH_QUALITY
+  ].filter(Boolean);
+  if(extra) parts.push(`Additional Instructions:\n${extra}`);
+  parts.push(EXH_FINAL);
+  return parts.join('\n\n');
+}
+
 function buildExteriorPromptP(p = {}){
   const time = p.time || 'noon';   // matches the shipped HTML default
   const clouds = p.clouds || 'thin';
@@ -1121,6 +1244,15 @@ function readExtParams(){
     ].filter(Boolean).join(' ')
   };
 }
+function readExhParams(){
+  return {
+    exhLight: $('sExhLight').value, exhHall: $('sExhHall').value,
+    exhFloor: $('sExhFloor').value, exhPeople: $('sExhPeople').value,
+    exhNeighbours: $('sExhNeighbours').checked, exhProps: $('sExhProps').checked,
+    exhExtra: $('sExhExtra').value.trim()
+  };
+}
+function buildExhibitionPrompt(){ return buildExhibitionPromptP(readExhParams()); }
 function buildExteriorPrompt(){ return buildExteriorPromptP(readExtParams()); }
 function buildSemiOutdoorPrompt(){ return buildSemiOutdoorPromptP(readExtParams()); }
 function buildInteriorPrompt(){
@@ -1235,33 +1367,34 @@ function applyPromptType(){
   // Which bands to read depends on the preset, so re-read before the prompt
   // below is rebuilt — switching Interior/Exterior after upload must re-sample.
   refreshAutoMaterials();
-  if(type === 'exterior'){
-    $('sExtControls').style.display = '';
-    $('sIntControls').style.display = 'none';
-    $('sPrompt').readOnly = true;
-    hiddenPromptCache = buildExteriorPrompt();
-    $('sPrompt').value = PROMPT_MASK;
-  } else if(type === 'semiOutdoor'){
-    $('sExtControls').style.display = '';
-    $('sIntControls').style.display = 'none';
-    $('sPrompt').readOnly = true;
-    hiddenPromptCache = buildSemiOutdoorPrompt();
-    $('sPrompt').value = PROMPT_MASK;
-  } else if(type === 'interior'){
-    $('sExtControls').style.display = 'none';
-    $('sIntControls').style.display = '';
-    $('sPrompt').readOnly = true;
-    hiddenPromptCache = buildInteriorPrompt();
-    $('sPrompt').value = PROMPT_MASK;
-  } else {
-    $('sExtControls').style.display = 'none';
-    $('sIntControls').style.display = 'none';
+  const groups = { sExtControls:0, sIntControls:0, sExhControls:0 };
+  if(type === 'exterior' || type === 'semiOutdoor') groups.sExtControls = 1;
+  else if(type === 'interior') groups.sIntControls = 1;
+  else if(type === 'exhibition') groups.sExhControls = 1;
+  for(const id in groups){
+    const el = $(id);
+    if(el) el.style.display = groups[id] ? '' : 'none';
+  }
+  if(type === 'custom'){
     $('sPrompt').readOnly = false;
     if($('sPrompt').value === PROMPT_MASK) $('sPrompt').value = '';
     hiddenPromptCache = '';
+  }else{
+    $('sPrompt').readOnly = true;
+    hiddenPromptCache = type === 'exterior'   ? buildExteriorPrompt()
+                      : type === 'semiOutdoor'? buildSemiOutdoorPrompt()
+                      : type === 'interior'   ? buildInteriorPrompt()
+                                              : buildExhibitionPrompt();
+    $('sPrompt').value = PROMPT_MASK;
   }
 }
 $('sPromptType').addEventListener('change', applyPromptType);
+['sExhLight','sExhHall','sExhFloor','sExhPeople','sExhNeighbours','sExhProps','sExhExtra'].forEach(id=>{
+  const el = $(id);
+  if(el) el.addEventListener('input', ()=>{
+    if($('sPromptType').value === 'exhibition') hiddenPromptCache = buildExhibitionPrompt();
+  });
+});
 function refreshExtPrompt(){
   updatePeopleDescVisibility();
   const type = $('sPromptType').value;

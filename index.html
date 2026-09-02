@@ -243,6 +243,7 @@
             <option value="exterior">Exterior (outdoor)</option>
             <option value="semiOutdoor">Semi Outdoor (covered terrace/pavilion/carport)</option>
             <option value="interior">Interior (indoor)</option>
+            <option value="exhibition">Booth &amp; Exhibition (บูธงานแสดงสินค้า)</option>
             <option value="custom">Custom (free-form prompt)</option>
           </select>
         </label>
@@ -432,6 +433,62 @@
               </label>
             </div>
           </details>
+        </div>
+        <div id="sExhControls" style="display:none;">
+          <div class="row2">
+            <label class="field">
+              <span>ไฟในบูธ</span>
+              <select id="sExhLight">
+                <option value="cool" selected>ขาวนวล — Cool White</option>
+                <option value="warm">ขาวอุ่น — Warm White</option>
+                <option value="mixed">ผสม — Cool + Warm accent</option>
+                <option value="off">ปิดไฟบูธ — ใช้ไฟฮอลล์อย่างเดียว</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>สถานที่</span>
+              <select id="sExhHall">
+                <option value="hall" selected>ฮอลล์แสดงสินค้า — เพดานโครงถัก</option>
+                <option value="tent">เต็นท์จัดงาน</option>
+                <option value="atrium">โถงกลางห้าง</option>
+                <option value="foyer">โถงหน้าศูนย์ประชุม</option>
+                <option value="outdoor">กลางแจ้ง — ลานจัดงาน</option>
+              </select>
+            </label>
+          </div>
+          <div class="row2">
+            <label class="field">
+              <span>พื้น</span>
+              <select id="sExhFloor">
+                <option value="concrete" selected>ปูนขัดมัน — มีเงาสะท้อน</option>
+                <option value="carpet">พรมแผ่น — ด้าน ไม่สะท้อน</option>
+                <option value="vinyl">ไวนิล / อีพ็อกซี่</option>
+                <option value="platform">เวทียกพื้น</option>
+                <option value="paving">พื้นกลางแจ้ง — ปูนบล็อก / ยางมะตอย</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>จำนวนคน</span>
+              <select id="sExhPeople">
+                <option value="none" selected>ไม่มีคน</option>
+                <option value="few">1–3 คน</option>
+                <option value="some">5–8 คน</option>
+                <option value="many">10 คนขึ้นไป</option>
+              </select>
+            </label>
+          </div>
+          <div class="row2">
+            <label class="field">
+              <span><label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;"><input type="checkbox" id="sExhNeighbours" checked style="width:auto;margin:0;"> บูธข้างเคียง (เบลอหลัง)</label></span>
+            </label>
+            <label class="field">
+              <span><label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;"><input type="checkbox" id="sExhProps" style="width:auto;margin:0;"> จัดของบนเคาน์เตอร์</label></span>
+            </label>
+          </div>
+          <label class="field">
+            <span>รายละเอียดเพิ่ม (ไม่ใส่ก็ได้)</span>
+            <textarea id="sExhExtra" placeholder="เช่น: มีจอ ledwall เล่นวิดีโออยู่, มีพนักงานใส่เสื้อสีส้ม" style="min-height:60px;"></textarea>
+          </label>
         </div>
 
         <details class="optgroup" id="sAdvGroup">
@@ -793,6 +850,6 @@
 </div>
 </div>
 
-<script src="app.js?v=2026-09-02e"></script>
+<script src="app.js?v=2026-09-02f"></script>
 </body>
 </html>
