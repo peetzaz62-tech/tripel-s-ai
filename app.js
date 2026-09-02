@@ -989,6 +989,34 @@ const NO_PHANTOM_SOURCE = ` Light enters only through the openings that already 
 // eye — cast shadows and sunlight patches appear where there were none.
 const ONE_LIGHT_DIRECTION = ` All the light in the room arrives from one dominant direction — the largest and brightest opening the source already has. Every shadow in the frame falls the same way from that single source, and no second light of comparable strength arrives from another side.`;
 
+// Naming which SIDE that dominant light comes from. This works on interiors and
+// does not work outdoors, and the difference is large enough that the exterior
+// result must not be read across — measured 2026-09-02 on a flat SketchUp cafe
+// with no shadows in the source, two seeds each. Brightness slope across the
+// frame, positive meaning brighter to the right:
+//
+//                        seed 62   seed 7
+//     auto (baseline)      12.53    14.69
+//     named LEFT            3.36    12.38    always below its baseline
+//     named RIGHT          15.64    18.52    always above its baseline
+//
+// Four for four in the right direction, and every one of them also beat its own
+// baseline on lit-minus-shade — 78.9 to 84.1/81.2, and 82.1 to 87.8/89.7. That
+// contrast gain is the half that answers the washed-out complaint, and it is
+// the half that never failed.
+//
+// The honest limit: strength varies. At seed 62 "left" relit the room from the
+// left and closed the far window; at seed 7 it only leaned that way and the
+// room stayed lit by its own opening. So this biases the light reliably and
+// overrides the source's real opening only sometimes — the usual rule that the
+// source carries the limits. Left and right are the only directions measured;
+// do not add more without running the same two-seed test.
+const INT_LIGHT_DIR = {
+  auto:  ONE_LIGHT_DIRECTION,
+  left:  ` All the light in the room arrives from one dominant direction — from the left of the frame, low and roughly level with the room, raking along the wall. Everything standing on the floor lays a definite shadow stretching to its right across it, the left face of every object is the bright one, and the side of the room furthest from that light falls clearly darker. No second light of comparable strength arrives from another side.`,
+  right: ` All the light in the room arrives from one dominant direction — from the right of the frame, low and roughly level with the room, raking along the wall. Everything standing on the floor lays a definite shadow stretching to its left across it, the right face of every object is the bright one, and the side of the room furthest from that light falls clearly darker. No second light of comparable strength arrives from another side.`
+};
+
 // Auto no longer asks for an exterior to be composed. Telling the model there
 // is "a genuine exterior appropriate to the setting" beyond the glass made it
 // invent landscapes and skylines that were never in the source — the fix for
@@ -1096,9 +1124,10 @@ const INT_LIGHT_OFF = {
   night: `Lighting: night. The only light is faint ambient night light entering through the glazing, distant city or garden light and a trace of moonlight, so the room reads as a dim, cool, quiet space. Forms stay readable in the low light with soft gradation rather than solid black.` + FIXTURES_OFF
 };
 
-function intLightingParagraph(mode, fixtures, bg, closeup, mood){
+function intLightingParagraph(mode, fixtures, bg, closeup, mood, lightDir){
   const m = INT_LIGHT_ON[mode] ? mode : 'white';
   const depth = mood === 'depth';
+  const dir = (closeup || !INT_LIGHT_DIR[lightDir]) ? 'auto' : lightDir;
   let base = (fixtures === 'off' ? INT_LIGHT_OFF : INT_LIGHT_ON)[m];
   if(depth) for(const [from, to] of INT_MOOD_SWAPS) base = base.replace(from, to);
   // Only the two modes that describe a lit room take the glow, the high-key
@@ -1106,7 +1135,8 @@ function intLightingParagraph(mode, fixtures, bg, closeup, mood){
   // dark, and a bright-and-welcoming sentence would fight their own opening
   // line — the kind of self-contradiction that broke the old v5 core.
   const litRoom = (m === 'white' || m === 'warm')
-    ? (depth ? (INT_GLOW_DEPTH + SOFT_SHADOWS_DEPTH + ONE_LIGHT_DIRECTION) : (INT_GLOW + INT_HIGH_KEY + SOFT_SHADOWS))
+    ? (depth ? (INT_GLOW_DEPTH + SOFT_SHADOWS_DEPTH + INT_LIGHT_DIR[dir])
+             : (INT_GLOW + INT_HIGH_KEY + SOFT_SHADOWS + (dir === 'auto' ? '' : INT_LIGHT_DIR[dir])))
     : '';
   // A close-up frame often contains no glazing at all, so asking for a view
   // through it invites one to be drawn.
@@ -1144,6 +1174,7 @@ function buildInteriorPromptP(p = {}){
   const bg = p.intBg || 'auto';
   const closeup = (p.intShot || 'room') === 'closeup';
   const mood = p.intMood || 'depth';
+  const lightDir = p.intLightDir || 'auto';
   const focus = p.intFocus || 'deep';
   const people = p.intPeople || 'no';
   const extra = String(p.intExtra || '').trim();
@@ -1154,7 +1185,7 @@ function buildInteriorPromptP(p = {}){
 
   const parts = [
     core,
-    intLightingParagraph(mode, fixtures, bg, closeup, mood),
+    intLightingParagraph(mode, fixtures, bg, closeup, mood, lightDir),
     intPeopleParagraph(people, closeup),
     intFocusParagraph(focus, closeup)
   ].filter(Boolean);
@@ -1263,6 +1294,7 @@ function buildInteriorPrompt(){
   return buildInteriorPromptP({
     intLight: $('sIntLight').value, intShot: $('sIntShot').value,
     intFixtures: $('sIntFixtures').value, intBg: $('sIntBg').value, intMood: $('sIntMood').value,
+    intLightDir: $('sIntLightDir').value,
     intFocus: $('sIntFocus').value, intPeople: $('sIntPeople').value,
     intExtra: [auto, typed].filter(Boolean).join(' ')
   });
@@ -1418,7 +1450,7 @@ function updateIntFocusAvailability(){
     if(field) field.style.opacity = closeup ? '0.45' : '';
   });
 }
-['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntMood','sIntFocus','sIntPeople','sIntExtra','sAutoMat'].forEach(id=>{
+['sIntLight','sIntShot','sIntFixtures','sIntBg','sIntMood','sIntLightDir','sIntFocus','sIntPeople','sIntExtra','sAutoMat'].forEach(id=>{
   $(id).addEventListener('input', ()=>{
     updateIntFocusAvailability();
     if($('sPromptType').value === 'interior') hiddenPromptCache = buildInteriorPrompt();
@@ -3616,6 +3648,9 @@ render('all');
     sIntLight:  { white: svg(bulb), warm: svg(bulbWarm), evening: svg(lowSun), night: svg(moon) },
     sIntFixtures:{ on: svg(bulb), off: svg(bulb + `<path d="M2.4 2.4l9.2 9.2" ${S}/>`) },
     sIntFocus:  { deep: svg(deepF), shallow: svg(shallowF) },
+    sIntLightDir: { auto: svg(autoI),
+                    left:  svg(`<path d="M1.8 2.4v9.2" ${S}/><path d="M3.4 7h5.4M6.6 4.8 8.8 7l-2.2 2.2" ${S}/><path d="M11 4v6" ${S} stroke-dasharray="1.4 1.5"/>`),
+                    right: svg(`<path d="M12.2 2.4v9.2" ${S}/><path d="M10.6 7H5.2M7.4 4.8 5.2 7l2.2 2.2" ${S}/><path d="M3 4v6" ${S} stroke-dasharray="1.4 1.5"/>`) },
     sIntMood:   { depth: svg(`<circle cx="7" cy="7" r="5" ${S}/><path d="M7 2a5 5 0 0 1 0 10Z" fill="currentColor" stroke="none"/>`),
                   bright: svg(`<circle cx="7" cy="7" r="5" ${S}/>`) },
     sExhLight:  { cool: svg(bulb), warm: svg(bulbWarm),
