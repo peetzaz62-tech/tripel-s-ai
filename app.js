@@ -3537,3 +3537,186 @@ render('all');
   });
 })();
 
+
+/* ---------------------------------------------------------------------------
+   Chip choice groups.
+
+   Every settings control on this page was a <select>. A dropdown costs two
+   clicks and hides its own options until you open it, so choosing Midday meant
+   opening a list, reading five lines of Thai, and picking one of them. peetz
+   asked for icons, less text, and fewer dropdown presses -- which is one
+   request, not three: show the options instead of hiding them.
+
+   The <select> stays in the DOM as the source of truth. Every builder above
+   still reads $('sExtTime').value and still hears 'change', so nothing in this
+   file had to move to make this work; the chips only write to the select and
+   re-fire its events. That also means a control added to the HTML later is
+   picked up here for free, with no registration step to forget.
+   --------------------------------------------------------------------------- */
+(function chipControls(){
+  const S = 'stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+  const svg = body => `<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true">${body}</svg>`;
+
+  // A small shared vocabulary, so a cloud means the same thing wherever it
+  // turns up and the whole set stays legible at 13px.
+  const sun      = `<circle cx="7" cy="7" r="2.6" ${S}/><path d="M7 1.4V2.6M7 11.4V12.6M12.6 7H11.4M2.6 7H1.4M10.9 3.1L10.1 3.9M3.9 10.1L3.1 10.9M10.9 10.9L10.1 10.1M3.9 3.9L3.1 3.1" ${S}/>`;
+  const lowSun   = `<path d="M1 10.5H13" ${S}/><path d="M3.7 10.5a3.3 3.3 0 0 1 6.6 0" ${S}/><path d="M7 3.2V4.4M11.6 5.9L10.8 6.6M2.4 5.9L3.2 6.6" ${S}/>`;
+  const sunDown  = `<path d="M1 11.4H13" ${S}/><path d="M4.4 9.2a2.6 2.6 0 0 1 5.2 0" ${S}/><path d="M7 1.8v4M5.4 4.4 7 6l1.6-1.6" ${S}/>`;
+  const sunUp    = `<path d="M1 11.4H13" ${S}/><path d="M4.4 9.2a2.6 2.6 0 0 1 5.2 0" ${S}/><path d="M7 6V1.8M5.4 3.4 7 1.8l1.6 1.6" ${S}/>`;
+  const moon     = `<path d="M9.6 8.9A4.2 4.2 0 0 1 5.1 2.6a4.6 4.6 0 1 0 5.4 6.6 4.3 4.3 0 0 1-.9-.3Z" ${S}/>`;
+  const cloud1   = `<path d="M4.3 10.2a2.5 2.5 0 0 1 .3-5 3.4 3.4 0 0 1 6.3 1 2 2 0 0 1-.5 4H4.3Z" ${S}/>`;
+  const cloudLit = `<circle cx="4.6" cy="4.6" r="1.9" ${S}/><path d="M5.6 11.1a2 2 0 0 1 .3-4 2.8 2.8 0 0 1 5.1.8 1.7 1.7 0 0 1-.4 3.2H5.6Z" ${S}/>`;
+  const overcast = `<path d="M2.6 8.6a2.3 2.3 0 0 1 .3-4.6 3.2 3.2 0 0 1 5.9.9 1.9 1.9 0 0 1-.5 3.7H2.6Z" ${S}/><path d="M4.5 11.4H12" ${S}/>`;
+  const crossed  = `<path d="M2.5 2.5l9 9M11.5 2.5l-9 9" ${S}/>`;
+  const person   = p => `<circle cx="${p}" cy="4" r="1.5" ${S}/><path d="M${p - 2.2} 12v-3a2.2 2.2 0 0 1 4.4 0v3" ${S}/>`;
+  const blurred  = `<circle cx="7" cy="4" r="1.5" ${S} stroke-dasharray="1.3 1.4"/><path d="M4.8 12V9a2.2 2.2 0 0 1 4.4 0v3" ${S} stroke-dasharray="1.3 1.4"/>`;
+  const bulb     = `<path d="M7 1.6a3.6 3.6 0 0 0-2.2 6.5V9.7h4.4V8.1A3.6 3.6 0 0 0 7 1.6Z" ${S}/><path d="M5.4 11.4h3.2M6 12.8h2" ${S}/>`;
+  const bulbWarm = bulb + `<path d="M1.6 4.4 3 5M12.4 4.4 11 5M2.6 1.6 3.6 2.6M11.4 1.6l-1 1" ${S}/>`;
+  const deepF    = `<rect x="1.8" y="3.5" width="10.4" height="7" rx="1" ${S}/><path d="M4.4 6.2h5.2M4.4 8.4h3" ${S}/>`;
+  const shallowF = `<circle cx="5" cy="7" r="3" ${S}/><path d="M9.4 4.6a3.4 3.4 0 0 1 0 4.8" ${S} stroke-dasharray="1.4 1.6"/>`;
+  const cityline = `<path d="M1.5 12h11" ${S}/><rect x="2.2" y="4" width="3.4" height="8" ${S}/><rect x="7" y="1.8" width="3.4" height="10.2" ${S}/>`;
+  const autoI    = `<path d="M7 1.8v2M7 10.2v2M1.8 7h2M10.2 7h2" ${S}/><circle cx="7" cy="7" r="2.4" ${S}/>`;
+
+  // selectId -> optionValue -> icon. Anything not listed renders as a plain
+  // text chip, which is the right answer for a choice a picture cannot carry.
+  const ICONS = {
+    sPromptType: {
+      exterior:    svg(`<path d="M1.5 12h11M3 12V5.5l4-3 4 3V12" ${S}/><path d="M6 12V9h2v3" ${S}/>`),
+      semiOutdoor: svg(`<path d="M1.5 6.5 7 2.5l5.5 4" ${S}/><path d="M3.5 12V6.8M10.5 12V6.8" ${S}/><path d="M1.5 12h11" ${S}/>`),
+      interior:    svg(`<rect x="2" y="2.5" width="10" height="9" rx="1" ${S}/><path d="M2 8.5h10" ${S}/><path d="M5 11.5V8.5" ${S}/>`),
+      exhibition:  svg(`<path d="M1.5 3h11" ${S}/><path d="M3 3v9M11 3v9" ${S}/><rect x="4.8" y="6" width="4.4" height="6" ${S}/>`),
+      custom:      svg(`<path d="M2.5 11.5 3 9l6.4-6.4a1.3 1.3 0 0 1 1.9 1.9L5 10.9l-2.5.6Z" ${S}/>`)
+    },
+    sExtTime:   { dawn: svg(sunUp), sunset: svg(lowSun), noon: svg(sun), twilight: svg(sunDown), night: svg(moon) },
+    sExtClouds: { none: svg(sun), thin: svg(cloudLit), thick: svg(cloud1), overcast: svg(overcast) },
+    sExtWeather:{
+      clear:    svg(sun),
+      overcast: svg(overcast),
+      mist:     svg(`<path d="M2 4.5h10M1.5 7h11M3 9.5h8M2 12h9" ${S}/>`),
+      rain:     svg(cloud1 + `<path d="M5 11.6 4.4 13M8 11.6 7.4 13M11 11.6l-.6 1.4" ${S}/>`),
+      snow:     svg(`<path d="M7 2v10M2.7 4.5l8.6 5M11.3 4.5l-8.6 5" ${S}/>`)
+    },
+    sExtBackground:{
+      auto:  svg(autoI),
+      trees: svg(`<path d="M7 12V8" ${S}/><path d="M7 1.8 3.8 6.2h6.4L7 1.8Z" ${S}/><path d="M4.6 9.2h4.8L7 5.4 4.6 9.2Z" ${S}/>`),
+      low:   svg(`<path d="M1.5 12h11" ${S}/><path d="M2.5 12V7.5l2.6-2 2.6 2V12" ${S}/><path d="M8.5 12V8.8l1.9-1.4L12 8.8V12" ${S}/>`),
+      high:  svg(cityline)
+    },
+    sExtView:{
+      normal:    svg(`<path d="M1.4 7s2.2-3.6 5.6-3.6S12.6 7 12.6 7s-2.2 3.6-5.6 3.6S1.4 7 1.4 7Z" ${S}/><circle cx="7" cy="7" r="1.5" ${S}/>`),
+      bird:      svg(`<path d="M7 1.5v7.5" ${S}/><path d="M4.4 6.6 7 9.2l2.6-2.6" ${S}/><path d="M2 12h10" ${S}/>`),
+      isometric: svg(`<path d="M7 1.8 12.3 5v4L7 12.2 1.7 9V5L7 1.8Z" ${S}/><path d="M7 12.2V7M7 7l5.3-2M7 7 1.7 5" ${S}/>`)
+    },
+    sExtFocus:  { deep: svg(deepF), shallow: svg(shallowF) },
+    sExtPeople: { no: svg(crossed), yes: svg(person(7)), blur: svg(blurred) },
+    sExtCars:   { no: svg(crossed),
+                  blur: svg(`<path d="M2.4 9.4h9.2M3.4 9.4V7.6l1.5-2.2h4.2l1.5 2.2v1.8" ${S}/><circle cx="4.8" cy="10.4" r="1" ${S}/><circle cx="9.2" cy="10.4" r="1" ${S}/>`) },
+    sIntShot:   { room: svg(`<rect x="1.8" y="3" width="10.4" height="8" rx="1" ${S}/><path d="M1.8 8.4h10.4" ${S}/>`),
+                  closeup: svg(`<circle cx="6.2" cy="6.2" r="3.6" ${S}/><path d="M9 9l3 3" ${S}/>`) },
+    sIntLight:  { white: svg(bulb), warm: svg(bulbWarm), evening: svg(lowSun), night: svg(moon) },
+    sIntFixtures:{ on: svg(bulb), off: svg(bulb + `<path d="M2.4 2.4l9.2 9.2" ${S}/>`) },
+    sIntFocus:  { deep: svg(deepF), shallow: svg(shallowF) },
+    sIntMood:   { depth: svg(`<circle cx="7" cy="7" r="5" ${S}/><path d="M7 2a5 5 0 0 1 0 10Z" fill="currentColor" stroke="none"/>`),
+                  bright: svg(`<circle cx="7" cy="7" r="5" ${S}/>`) },
+    sExhLight:  { cool: svg(bulb), warm: svg(bulbWarm),
+                  mixed: svg(`<circle cx="4.6" cy="6" r="2.4" ${S}/><circle cx="9.4" cy="8" r="2.4" ${S}/>`),
+                  off: svg(bulb + `<path d="M2.4 2.4l9.2 9.2" ${S}/>`) },
+    sExhHall:{
+      hall:    svg(`<path d="M1.5 4.5h11" ${S}/><path d="M1.5 4.5 4 2h6l2.5 2.5" ${S}/><path d="M2.5 4.5v7M11.5 4.5v7" ${S}/><path d="M1.5 11.5h11" ${S}/>`),
+      tent:    svg(`<path d="M7 2 1.8 6.2h10.4L7 2Z" ${S}/><path d="M2.6 6.2v5.6M11.4 6.2v5.6" ${S}/><path d="M1.5 11.8h11" ${S}/>`),
+      atrium:  svg(`<path d="M2 2.4h10" ${S}/><path d="M2 2.4v9.2M12 2.4v9.2" ${S}/><path d="M2 6.4h10M2 9.2h10" ${S}/>`),
+      foyer:   svg(`<rect x="2.4" y="2" width="9.2" height="10" rx="1" ${S}/><path d="M5.2 12V6.4h3.6V12" ${S}/>`),
+      outdoor: svg(`<circle cx="9.6" cy="4" r="2" ${S}/><path d="M1.5 11.5h11" ${S}/><path d="M2.6 11.5V7.4l2.6-2.2 2.6 2.2v4.1" ${S}/>`)
+    },
+    sExhFloor:{
+      concrete: svg(`<path d="M1.5 6.5h11" ${S}/><path d="M2.6 9h8.8M3.6 11.2h6.8" ${S} stroke-dasharray="1.6 1.8"/>`),
+      carpet:   svg(`<rect x="1.8" y="4" width="10.4" height="6.5" ${S}/><path d="M5.3 4v6.5M8.7 4v6.5M1.8 7.2h10.4" ${S}/>`),
+      vinyl:    svg(`<path d="M1.5 5.5h11M1.5 8.5h11" ${S}/>`),
+      platform: svg(`<path d="M1.5 11h4V8h4V5h4" ${S}/>`),
+      paving:   svg(`<rect x="1.8" y="4.4" width="10.4" height="5.8" ${S}/><path d="M1.8 7.3h10.4M5 4.4v2.9M8.9 7.3v2.9" ${S}/>`)
+    },
+    sIntBg:{
+      auto:   svg(autoI),
+      garden: svg(`<path d="M7 12V6.5" ${S}/><path d="M7 6.5C7 4 5.4 2.6 3.6 2.6c0 2.4 1.6 3.9 3.4 3.9Z" ${S}/><path d="M7 8.4c0-2 1.4-3.2 3-3.2 0 2-1.4 3.2-3 3.2Z" ${S}/>`),
+      forest: svg(`<path d="M4.4 12V9.4M9.4 12v-2" ${S}/><path d="M4.4 1.8 2 6.2h4.8L4.4 1.8Z" ${S}/><path d="M4.4 5.2 2.6 9.4h3.6L4.4 5.2Z" ${S}/><path d="M9.4 4 7.6 7.4h3.6L9.4 4Z" ${S}/>`),
+      street: svg(`<path d="M1.5 11.5h11" ${S}/><path d="M4.6 11.5 6 5h2l1.4 6.5" ${S}/><path d="M6.6 8.2h1" ${S}/>`),
+      city:   svg(cityline)
+    },
+    sIntPeople:{ no: svg(crossed), sit: svg(person(7)), walk: svg(blurred),
+                 both: svg(person(4.4) + person(9.6)) },
+    sExhPeople:{ none: svg(crossed), few: svg(person(7)), some: svg(person(4.4) + person(9.6)),
+                 many: svg(person(3.2) + person(7) + person(10.8)) },
+    apPose:    { still: svg(person(7)), moving: svg(blurred), both: svg(person(4.4) + person(9.6)) },
+    pEngine:   { usdu: svg(`<circle cx="6.2" cy="6.2" r="3.6" ${S}/><path d="M9 9l3 3" ${S}/>`),
+                 seedvr2: svg(`<path d="M7.6 1.6 3 8h3.4l-.6 4.4L10.4 6H7l.6-4.4Z" ${S}/>`) },
+    skScope:   { full: svg(`<rect x="1.8" y="2.6" width="10.4" height="8.8" rx="1" ${S}/>`),
+                 masked: svg(`<rect x="1.8" y="2.6" width="10.4" height="8.8" rx="1" ${S} stroke-dasharray="1.5 1.6"/><rect x="4.6" y="5.2" width="4.8" height="4" ${S}/>`) }
+  };
+
+  // "Golden Hour — แดดเฉียงอุ่น เงายาว ฟ้าไล่สี" is a chip label and a tooltip
+  // wearing one coat. The head is the name; everything after the dash is the
+  // explanation, and that belongs on hover, not on the button.
+  const head = t => t.split(/\s+[—·]\s+/)[0].replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const tail = t => {
+    const parts = t.split(/\s+[—·]\s+/);
+    return (parts.length > 1 ? parts.slice(1).join(' ') : t).replace(/\s*\([^)]*\)\s*$/, '').trim();
+  };
+
+  function build(sel){
+    if(sel.classList.contains('chipped')) return;
+    const opts = [...sel.options];
+    if(opts.length < 2 || opts.length > 6) return;
+
+    // Two options can share a head — sExtPeople offers "Include — คนชัด" and
+    // "Include — คนเบลอ". When that happens the distinguishing half is the
+    // tail, so the whole group switches to it rather than showing two
+    // identical buttons.
+    let labels = opts.map(o => head(o.textContent) || o.textContent.trim());
+    if(new Set(labels).size !== labels.length){
+      labels = opts.map(o => tail(o.textContent) || o.textContent.trim());
+    }
+
+    const box = document.createElement('div');
+    box.className = 'chips';
+    box.setAttribute('role', 'group');
+    const icons = ICONS[sel.id] || {};
+
+    opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.dataset.v = o.value;
+      b.setAttribute('aria-pressed', String(o.value === sel.value));
+      const full = o.textContent.replace(/\s+/g, ' ').trim();
+      if(full !== labels[i]) b.title = full;
+      b.innerHTML = (icons[o.value] || '') + '<span></span>';
+      b.lastChild.textContent = labels[i];
+      b.addEventListener('click', e => {
+        // The chips sit inside <label class="field">, whose default action is
+        // to focus the control it labels — which is the now-hidden select.
+        e.preventDefault();
+        if(sel.value === o.value) return;
+        sel.value = o.value;
+        [...box.children].forEach(c => c.setAttribute('aria-pressed', String(c.dataset.v === o.value)));
+        sel.dispatchEvent(new Event('input', {bubbles:true}));
+        sel.dispatchEvent(new Event('change', {bubbles:true}));
+      });
+      box.appendChild(b);
+    });
+
+    sel.classList.add('chipped');
+    sel.after(box);
+    sel._chips = box;
+  }
+
+  // Anything that sets a select from code — now or later — can call this to
+  // bring the buttons back in line without knowing they exist.
+  window.syncChips = function(){
+    document.querySelectorAll('#view-app select.chipped').forEach(sel => {
+      if(!sel._chips) return;
+      [...sel._chips.children].forEach(c => c.setAttribute('aria-pressed', String(c.dataset.v === sel.value)));
+    });
+  };
+
+  document.querySelectorAll('#view-app select').forEach(build);
+})();
