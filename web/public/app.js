@@ -984,8 +984,8 @@ const INT_MOOD_SWAPS = [
 // The blown-window half of the same problem: "plain bright sky" was being taken
 // literally and the glazing came back as a flat 255 void. Clipped highlights
 // across the whole frame fell 9.06% -> 2.46% on this sentence alone.
-const SKY_VOID_BRIGHT = `Where the source shows nothing but blank white beyond the glass, that stays plain bright sky and no scene is composed to fill it.`;
-const SKY_VOID_DEPTH  = `Where the source shows nothing but blank white beyond the glass, the glazing reads as bright daylight held just within the exposure, still luminous but not burnt to a flat white void, and no scene is composed to fill it.`;
+const SKY_VOID_BRIGHT = `Where the source leaves blank white inside an opening it has already framed as glazing, that stays plain bright sky and no scene is composed to fill it. Blank white anywhere else is a surface, not an opening: a white wall, panel or joinery front stays that surface in its own material, lit by the room.`;
+const SKY_VOID_DEPTH  = `Where the source leaves blank white inside an opening it has already framed as glazing, that glazing reads as bright daylight held just within the exposure, still luminous but not burnt to a flat white void, and no scene is composed to fill it. Blank white anywhere else is a surface, not an opening: a white wall, panel or joinery front stays that surface in its own material, lit by the room.`;
 
 // Two failures this fixes, both seen in testing:
 // 1. A turntable's clear acrylic dust cover was read as a window and the model
@@ -1043,7 +1043,7 @@ const INT_LIGHT_DIR = {
 // blank white windows overshot into scene invention. Auto now preserves what
 // the source shows and only rules out the flat void; a view is drawn only when
 // the user picks one.
-const INT_VIEW_KEEP = ` The source image is the authority on what lies outside. Whatever it already shows beyond the glazing — its own buildings, trees, planting, sky or backdrop — stays exactly that: the same elements in the same places at the same distance, changed only by being rendered photographically. Nothing is substituted for something more interesting and nothing is added around it: no extra building, tree, skyline, hill or horizon that the source does not already contain. Where the source shows nothing but blank white beyond the glass, that stays plain bright sky and no scene is composed to fill it.`;
+const INT_VIEW_KEEP = ` The source image is the authority on what lies outside. Whatever it already shows beyond the glazing — its own buildings, trees, planting, sky or backdrop — stays exactly that: the same elements in the same places at the same distance, changed only by being rendered photographically. Nothing is substituted for something more interesting and nothing is added around it: no extra building, tree, skyline, hill or horizon that the source does not already contain. Where the source leaves blank white inside an opening it has already framed as glazing, that stays plain bright sky and no scene is composed to fill it. Blank white anywhere else is a surface, not an opening: a white wall, panel or joinery front stays that surface in its own material, lit by the room.`;
 
 // A chosen view has to be phrased as a CONDITION, never as a fact. Written as a
 // statement — "beyond the glazing there is a city view" — the model treats it as
@@ -1087,7 +1087,10 @@ const INT_VIEW_EXPOSURE = {
 function intViewOutsideParagraph(bg, mode, depth){
   const content = INT_VIEW_CONTENT[bg];
   const keep = depth ? INT_VIEW_KEEP.replace(SKY_VOID_BRIGHT, SKY_VOID_DEPTH) : INT_VIEW_KEEP;
-  if(!content) return keep; // auto, or an unknown value
+  // Auto used to return `keep` on its own, which left out INT_VIEW_GUARD -- the
+  // only sentence that says a solid wall stays solid. The guard is true whether
+  // or not a view was chosen, so auto gets it too.
+  if(!content) return keep + INT_VIEW_GUARD; // auto, or an unknown value
   const band = mode === 'night' ? 'night' : (mode === 'evening' ? 'evening' : 'day');
   // The condition used to read "glazing with something visible through it",
   // which quietly excluded the exact case the Sky option exists for: a window
